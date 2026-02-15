@@ -1,0 +1,21 @@
+<style>
+    html,
+    body {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+<div style="width: 100px; display: flex; flex-direction: column;">
+    <button onclick="run()">Run</button>
+    <input placeholder="itterations" id="itterations" />
+    <input placeholder="splats" id="splats" />
+    <input placeholder="initial radius" id="initialRadius" />
+</div>
+<canvas id="canvas" width="1000" height="1000"></canvas>
+<script src="./index.js"></script>
