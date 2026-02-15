@@ -524,5 +524,3 @@ impl State {
         self.delta_time = delta;
     }
 }
-
-// ...
