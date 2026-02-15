@@ -1,5 +1,8 @@
+// IMPORTANT: This code is not actively maintained. It is recommended to use glb instead of obj.
+
+use image::GenericImageView;
 use std::{collections::HashMap, fs::File, io::Read};
-use wgpu::{Device, IndexFormat, util::DeviceExt};
+use wgpu::{BindGroupLayout, Device, IndexFormat, Queue, util::DeviceExt};
 
 use crate::{mesh::Mesh, vertex::Vertex};
 
@@ -8,6 +11,8 @@ pub fn parse_obj(
     offset: Option<[f32; 3]>,
     scale: Option<[f32; 3]>,
     device: &Device,
+    queue: &Queue,
+    texture_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Mesh> {
     let mut file = File::open(path)?;
     let mut content = String::new();
@@ -165,16 +170,87 @@ pub fn parse_obj(
             }
         }
     }
+
+    // Load Texture // TODO: Load Image per model
+    let diffuse_bytes = include_bytes!("models/tree.png");
+    let diffuse_image = image::load_from_memory(diffuse_bytes)?;
+    let diffuse_rgba = diffuse_image.to_rgba8();
+    let dimensions = diffuse_image.dimensions();
+    let texture_size = wgpu::Extent3d {
+        width: dimensions.0,
+        height: dimensions.1,
+        depth_or_array_layers: 1, // This is a 2D texture. So there is no depth
+    };
+    let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        label: Some("diffuse_texture"),
+        view_formats: &[],
+    });
+
+    queue.write_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: &diffuse_texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &diffuse_rgba,
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * dimensions.0),
+            rows_per_image: Some(dimensions.1),
+        },
+        texture_size,
+    );
+
+    let diffuse_texture_view = diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("diffuse_bind_group"),
+        layout: texture_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+            },
+        ],
+    });
+
     let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Index Buffer"),
         contents: bytemuck::cast_slice(&final_indices),
         usage: wgpu::BufferUsages::INDEX,
     });
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::cast_slice(&final_vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+
     let mesh = Mesh {
         index_buffer,
+        vertex_buffer,
         num_indices: final_indices.len() as u32,
-        vertices: final_vertices,
         index_format: IndexFormat::Uint32,
+        texture_bind_group,
     };
     // ai-gen: end
 

@@ -1,5 +1,4 @@
 use bytemuck::bytes_of;
-use image::GenericImageView;
 use std::sync::Arc;
 use web_time::{Duration, Instant};
 use wgpu::{
@@ -12,7 +11,7 @@ use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 // #[cfg(target_arch = "wasm32")]
 // use wasm_bindgen::prelude::*;
 
-use crate::{glb_parser, mesh::Mesh, obj_parser_v2, offset::OffsetUniform, vertex::Vertex};
+use crate::{glb_parser, mesh::Mesh, offset::OffsetUniform, vertex::Vertex};
 
 // This will store the state of the game
 pub struct State {
@@ -38,8 +37,6 @@ pub struct State {
     offset_buffer: Buffer,
     offset_bind_group: BindGroup,
     show_frame_times: bool,
-    // Texture
-    diffuse_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -108,55 +105,6 @@ impl State {
             desired_maximum_frame_latency: 2,
         };
 
-        // Load Texture // TODO: load per model based on their materials...
-        let diffuse_bytes = include_bytes!("models/tree.png");
-        let diffuse_image = image::load_from_memory(diffuse_bytes)?;
-        let diffuse_rgba = diffuse_image.to_rgba8();
-        let dimensions = diffuse_image.dimensions();
-        let texture_size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
-            depth_or_array_layers: 1, // This is a 2D texture. So there is no depth
-        };
-        let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            label: Some("diffuse_texture"),
-            view_formats: &[],
-        });
-
-        queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &diffuse_texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &diffuse_rgba,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * dimensions.0),
-                rows_per_image: Some(dimensions.1),
-            },
-            texture_size,
-        );
-
-        let diffuse_texture_view =
-            diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("texture_bind_group_layout"),
@@ -179,21 +127,6 @@ impl State {
                     },
                 ],
             });
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("diffuse_bind_group"),
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
-                },
-            ],
-        });
 
         // Movement
         let offset = OffsetUniform {
@@ -292,16 +225,23 @@ impl State {
 
         let mut meshes = Vec::new();
 
-        let mut glb_meshes = glb_parser::parse_glb("./src/models/gitf-gitb/cubes.glb", &device)?;
+        let mut glb_meshes = glb_parser::parse_glb(
+            "./src/models/gitf-gitb/cubes.glb",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        )?;
         meshes.append(&mut glb_meshes);
 
-        let mesh = obj_parser_v2::parse_obj(
-            "./src/models/cube-with-texture/cube.obj",
-            Some([0.0, -3.0, 5.0]),
-            None,
-            &device,
-        )?;
-        meshes.push(mesh);
+        // let mesh = obj_parser_v2::parse_obj(
+        //     "./src/models/cube-with-texture/cube.obj",
+        //     Some([0.0, -3.0, 5.0]),
+        //     None,
+        //     &device,
+        //     &queue,
+        //     &texture_bind_group_layout,
+        // )?;
+        // meshes.push(mesh);
 
         Ok(Self {
             surface,
@@ -326,7 +266,6 @@ impl State {
             offset_buffer,
             offset_bind_group,
             show_frame_times: false,
-            diffuse_bind_group,
         })
     }
 
@@ -422,24 +361,15 @@ impl State {
 
             self.offset.offset[2] = self.forward_progress * 4.0 - 2.0;
             self.offset.offset[0] = self.side_progress * 4.0 - 2.0;
-            // println!("{:#?}", self.offset.offset);
 
             self.queue
                 .write_buffer(&self.offset_buffer, 0, bytes_of(&self.offset));
             render_pass.set_bind_group(0, &self.offset_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
 
             // Cloning Meshes here would literally clone every model on each frame...
             for mesh in &self.meshes {
-                let vertex_buffer =
-                    self.device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Vertex Buffer"),
-                            contents: bytemuck::cast_slice(&mesh.vertices),
-                            usage: wgpu::BufferUsages::VERTEX,
-                        });
-
-                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.set_bind_group(1, &mesh.texture_bind_group, &[]);
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
             }

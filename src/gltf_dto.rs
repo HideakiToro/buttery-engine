@@ -103,7 +103,7 @@ pub struct GLTFBuffer {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GLTFImage {
-    pub buffer_view: i32,
+    pub buffer_view: u32,
     pub mime_type: String,
     pub name: String,
 }
@@ -128,7 +128,7 @@ pub struct GLTFMaterialPBRMetallicRoughness {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GLTFMaterialBaseColorTexture {
-    pub index: i32,
+    pub index: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -204,6 +204,6 @@ pub struct GLTFScene {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GLTFTexture {
-    pub sampler: i32,
-    pub source: i32,
+    pub sampler: u32,
+    pub source: u32,
 }
