@@ -5,10 +5,3 @@ Code in this project has so far only been based on:
 The code has been split between multiple files for easier extendability.
 
 To build this project, this guide was used: https://github.com/gfx-rs/wgpu/wiki/Running-on-the-Web-with-WebGPU-and-WebGL
-
-```bash
-RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --target wasm32-unknown-unknown --profile release
-wasm-bindgen --out-dir target/generated --web target/wasm32-unknown-unknown/release/buttery-engine.wasm
-cp ./index.html ./target/generated/index.html
-simple-http-server target/generated
-```
