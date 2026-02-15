@@ -11,7 +11,7 @@ pub fn parse_obj(path: &str, device: &Device) -> anyhow::Result<Mesh> {
     let mut vertices = Vec::new();
     let mut faces = Vec::new();
 
-    let temp_texture_coords = [
+    let _temp_texture_coords = [
         [0.4131759, 0.00759614],
         [0.0048659444, 0.43041354],
         [0.28081453, 0.949397],

@@ -12,7 +12,7 @@ use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 // #[cfg(target_arch = "wasm32")]
 // use wasm_bindgen::prelude::*;
 
-use crate::{mesh::Mesh, obj_parser_v2, offset::OffsetUniform, vertex::Vertex};
+use crate::{glb_parser, mesh::Mesh, obj_parser_v2, offset::OffsetUniform, vertex::Vertex};
 
 // This will store the state of the game
 pub struct State {
@@ -292,13 +292,21 @@ impl State {
 
         let mut meshes = Vec::new();
 
-        let mesh = obj_parser_v2::parse_obj(
-            "./src/models/cube-with-texture/cube.obj",
+        let mut glb_meshes = glb_parser::parse_glb(
+            "./src/models/gitf-gitb/cubes.glb",
             Some([0.0, -3.0, 5.0]),
             None,
             &device,
         )?;
-        meshes.push(mesh);
+        meshes.append(&mut glb_meshes);
+
+        // let mesh = obj_parser_v2::parse_obj(
+        //     "./src/models/cube-with-texture/cube.obj",
+        //     Some([0.0, -3.0, 5.0]),
+        //     None,
+        //     &device,
+        // )?;
+        // meshes.push(mesh);
 
         Ok(Self {
             surface,
@@ -451,7 +459,7 @@ impl State {
 
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
             }
         }
