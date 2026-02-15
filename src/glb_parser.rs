@@ -3,8 +3,7 @@ use crate::{
     mesh::Mesh,
     vertex::Vertex,
 };
-use serde::Deserialize;
-use std::{collections::HashMap, fs::File, io::Read};
+use std::{fs::File, io::Read};
 use thiserror::Error;
 use wgpu::{Device, IndexFormat, util::DeviceExt};
 
@@ -38,11 +37,9 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
         return Err(ParseError::WrongFormat.into());
     }
 
-    let version = String::from_utf8(version.to_vec())?;
-    println!("GLB-File Version: {version}");
+    let _version = String::from_utf8(version.to_vec())?;
 
-    let file_size = u32::from_le_bytes(file_size.try_into()?);
-    println!("Total file size: {file_size} bytes");
+    let _file_size = u32::from_le_bytes(file_size.try_into()?);
 
     // glTF Header
     let (blob_size, buffer) = buffer.split_at(4);
@@ -54,13 +51,10 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
     }
 
     let blob_size = u32::from_le_bytes(blob_size.try_into()?);
-    println!("Total data size: {blob_size} bytes");
 
     // glTF Content
     let (blob, buffer) = buffer.split_at(blob_size as usize);
     let gltf = serde_json::from_slice::<GLTF>(blob)?;
-
-    println!("{}", gltf.buffers[0].byte_length);
 
     // glB Header
     let (blob_size, buffer) = buffer.split_at(4);
@@ -72,7 +66,6 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
     }
 
     let blob_size = u32::from_le_bytes(blob_size.try_into()?);
-    println!("Total binary size: {blob_size} bytes");
 
     let (blob, _buffer) = buffer.split_at(blob_size as usize);
 
@@ -161,7 +154,7 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
             };
 
             meshes.push(ParsedMesh {
-                material: gltf.materials[primitive.material as usize].clone(),
+                _material: gltf.materials[primitive.material as usize].clone(),
                 indices,
                 vertex_positions: positions,
                 vertex_normals: normals,
@@ -169,7 +162,7 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
             });
         }
         groups.push(ParsedMeshGroup {
-            name: mesh.name,
+            _name: mesh.name,
             meshes,
         });
     }
@@ -200,7 +193,6 @@ pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
                 .zip(mesh.vertex_normals)
                 .zip(mesh.texture_positions)
             {
-                println!("{texture:#?}");
                 vertices.push(Vertex {
                     position: pos.clone(),
                     tex_coords: texture.clone(),
@@ -235,7 +227,7 @@ enum ParsedAccessorData {
 
 #[derive(Debug, Clone)]
 struct ParsedMeshGroup {
-    name: String,
+    _name: String,
     meshes: Vec<ParsedMesh>,
 }
 
@@ -257,14 +249,7 @@ struct ParsedMesh {
     vertex_normals: Vec<[f32; 3]>,
     texture_positions: Vec<[f32; 2]>,
     indices: Vec<u16>,
-    material: GLTFMaterial,
-}
-
-#[derive(Hash, PartialEq, Eq, Copy, Clone)]
-struct ParsedVertex {
-    vertex_index: u16,
-    texture_index: Option<u16>,
-    normal_index: Option<u16>,
+    _material: GLTFMaterial,
 }
 
 impl GLTFNode {

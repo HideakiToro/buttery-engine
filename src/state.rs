@@ -431,19 +431,6 @@ impl State {
 
             // Cloning Meshes here would literally clone every model on each frame...
             for mesh in &self.meshes {
-                // let vertices: Vec<Vertex> = mesh
-                //     .vertices
-                //     .iter()
-                //     .map(|vertex| {
-                //         let positions = vertex.position;
-                //         let new_x = positions[0] + (self.progress * 4.0 - 2.0);
-                //         Vertex {
-                //             position: [new_x, positions[1], positions[2]],
-                //             color: vertex.color,
-                //         }
-                //     })
-                //     .collect();
-
                 let vertex_buffer =
                     self.device
                         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -485,22 +472,27 @@ impl State {
     }
 
     pub fn update(&mut self) {
+        let mut speed = 1.0_f32;
+        if (self.d_pressed || self.a_pressed) && (self.w_pressed || self.s_pressed) {
+            speed = (speed * 2.0).sqrt() / 2.0;
+        }
+
         if self.d_pressed {
-            self.side_progress += self.delta_time * 1.0;
+            self.side_progress += self.delta_time * speed;
             // self.side_progress %= 2.0;
         }
         if self.a_pressed {
-            self.side_progress -= self.delta_time * 1.0;
+            self.side_progress -= self.delta_time * speed;
             // if self.side_progress < 0.0 {
             //     self.side_progress += 2.0;
             // }
         }
         if self.w_pressed {
-            self.forward_progress += self.delta_time * 1.0;
+            self.forward_progress += self.delta_time * speed;
             // self.forward_progress %= 2.0;
         }
         if self.s_pressed {
-            self.forward_progress -= self.delta_time * 1.0;
+            self.forward_progress -= self.delta_time * speed;
             // if self.forward_progress < 0.0 {
             //     self.forward_progress += 2.0;
             // }
