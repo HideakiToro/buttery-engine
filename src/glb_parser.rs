@@ -4,7 +4,6 @@ use crate::{
     vertex::Vertex,
 };
 use image::GenericImageView;
-use std::{fs::File, io::Read};
 use thiserror::Error;
 use wgpu::{BindGroupLayout, Device, IndexFormat, Queue, util::DeviceExt};
 
@@ -28,14 +27,15 @@ pub enum ParseError {
 
 // TODO: Parse Textures
 pub fn parse_glb(
-    path: &str,
+    buffer: &[u8],
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Vec<Mesh>> {
-    let mut file = File::open(path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
+    // let mut file = File::open(path)?;
+    // let mut buffer = Vec::new();
+    // file.read_to_end(&mut buffer)?;
+    // let buffer = include_bytes!();
 
     // File Header
     let (file_is_gltf, buffer) = buffer.split_at(4);

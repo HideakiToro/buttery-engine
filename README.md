@@ -8,6 +8,7 @@ To build this project, this guide was used: https://github.com/gfx-rs/wgpu/wiki/
 
 ```bash
 RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --target wasm32-unknown-unknown --profile release
-wasm-bindgen --out-dir target/generated --web target/wasm32-unknown-unknown/release/graphics-test.wasm
+wasm-bindgen --out-dir target/generated --web target/wasm32-unknown-unknown/release/buttery-engine.wasm
+cp ./index.html ./target/generated/index.html
 simple-http-server target/generated
 ```

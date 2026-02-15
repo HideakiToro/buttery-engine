@@ -225,23 +225,10 @@ impl State {
 
         let mut meshes = Vec::new();
 
-        let mut glb_meshes = glb_parser::parse_glb(
-            "./src/models/gitf-gitb/cubes.glb",
-            &device,
-            &queue,
-            &texture_bind_group_layout,
-        )?;
+        let buffer = include_bytes!("./models/gitf-gitb/cubes.glb");
+        let mut glb_meshes =
+            glb_parser::parse_glb(buffer, &device, &queue, &texture_bind_group_layout)?;
         meshes.append(&mut glb_meshes);
-
-        // let mesh = obj_parser_v2::parse_obj(
-        //     "./src/models/cube-with-texture/cube.obj",
-        //     Some([0.0, -3.0, 5.0]),
-        //     None,
-        //     &device,
-        //     &queue,
-        //     &texture_bind_group_layout,
-        // )?;
-        // meshes.push(mesh);
 
         Ok(Self {
             surface,

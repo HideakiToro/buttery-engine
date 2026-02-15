@@ -1,4 +1,4 @@
-use graphics_test::app::App;
+use buttery_engine::app::App;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use winit::event_loop::EventLoop;
