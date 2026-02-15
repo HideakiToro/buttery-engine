@@ -1,4 +1,5 @@
 use bytemuck::bytes_of;
+use cgmath::Vector3;
 use std::sync::Arc;
 use web_time::{Duration, Instant};
 use wgpu::{
@@ -11,7 +12,14 @@ use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 // #[cfg(target_arch = "wasm32")]
 // use wasm_bindgen::prelude::*;
 
-use crate::{glb_parser, mesh::Mesh, offset::OffsetUniform, vertex::Vertex};
+use crate::{
+    camera::{Camera, CameraUniform},
+    camera_controller::CameraController,
+    glb_parser,
+    mesh::Mesh,
+    offset::OffsetUniform,
+    vertex::Vertex,
+};
 
 // This will store the state of the game
 pub struct State {
@@ -26,10 +34,10 @@ pub struct State {
     last_frame_time: Instant,
     // start_time: Instant,
     pub window: Arc<Window>,
-    w_pressed: bool,
-    a_pressed: bool,
-    s_pressed: bool,
-    d_pressed: bool,
+    // w_pressed: bool,
+    // a_pressed: bool,
+    // s_pressed: bool,
+    // d_pressed: bool,
     forward_progress: f32,
     side_progress: f32,
     delta_time: f32,
@@ -37,6 +45,11 @@ pub struct State {
     offset_buffer: Buffer,
     offset_bind_group: BindGroup,
     show_frame_times: bool,
+    camera: Camera,
+    camera_controller: CameraController,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -163,6 +176,53 @@ impl State {
             }],
         });
 
+        let camera = Camera {
+            eye: (0.0, 1.0, 2.0).into(),
+            target: (0.0, 0.0, 0.0).into(),
+            up: Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+        let camera_controller = CameraController::new(5.0);
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera);
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
+        // More Bindgroup stuff here...
+
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         let depth_format = wgpu::TextureFormat::Depth24Plus;
@@ -170,7 +230,11 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&offset_bind_group_layout, &texture_bind_group_layout],
+                bind_group_layouts: &[
+                    &offset_bind_group_layout,
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -246,10 +310,10 @@ impl State {
             depth_format,
             last_frame_time: web_time::Instant::now(),
             // start_time: web_time::Instant::now(),
-            w_pressed: false,
-            a_pressed: false,
-            s_pressed: false,
-            d_pressed: false,
+            // w_pressed: false,
+            // a_pressed: false,
+            // s_pressed: false,
+            // d_pressed: false,
             forward_progress: 0.5,
             side_progress: 0.5,
             delta_time: 1.0 / 60.0,
@@ -257,6 +321,11 @@ impl State {
             offset_buffer,
             offset_bind_group,
             show_frame_times: false,
+            camera,
+            camera_controller,
+            camera_bind_group,
+            camera_buffer,
+            camera_uniform,
         })
     }
 
@@ -350,12 +419,15 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
+            // Offset
             self.offset.offset[2] = self.forward_progress * 4.0 - 2.0;
             self.offset.offset[0] = self.side_progress * 4.0 - 2.0;
-
             self.queue
                 .write_buffer(&self.offset_buffer, 0, bytes_of(&self.offset));
             render_pass.set_bind_group(0, &self.offset_bind_group, &[]);
+
+            //Camera
+            render_pass.set_bind_group(2, &self.camera_bind_group, &[]);
 
             // Cloning Meshes here would literally clone every model on each frame...
             for mesh in &self.meshes {
@@ -376,48 +448,59 @@ impl State {
     pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
-            (KeyCode::KeyW, pressed) => {
-                self.w_pressed = pressed;
+            // (KeyCode::KeyW, pressed) => {
+            //     self.w_pressed = pressed;
+            // }
+            // (KeyCode::KeyA, pressed) => {
+            //     self.a_pressed = pressed;
+            // }
+            // (KeyCode::KeyS, pressed) => {
+            //     self.s_pressed = pressed;
+            // }
+            // (KeyCode::KeyD, pressed) => {
+            //     self.d_pressed = pressed;
+            // }
+            (code, is_pressed) => {
+                self.camera_controller.handle_key(code, is_pressed);
             }
-            (KeyCode::KeyA, pressed) => {
-                self.a_pressed = pressed;
-            }
-            (KeyCode::KeyS, pressed) => {
-                self.s_pressed = pressed;
-            }
-            (KeyCode::KeyD, pressed) => {
-                self.d_pressed = pressed;
-            }
-            _ => {}
         }
     }
 
     pub fn update(&mut self) {
-        let mut speed = 1.0_f32;
-        if (self.d_pressed || self.a_pressed) && (self.w_pressed || self.s_pressed) {
-            speed = (speed * 2.0).sqrt() / 2.0;
-        }
+        // let mut speed = 1.0_f32;
+        // if (self.d_pressed || self.a_pressed) && (self.w_pressed || self.s_pressed) {
+        //     speed = (speed * 2.0).sqrt() / 2.0;
+        // }
 
-        if self.d_pressed {
-            self.side_progress += self.delta_time * speed;
-            // self.side_progress %= 2.0;
-        }
-        if self.a_pressed {
-            self.side_progress -= self.delta_time * speed;
-            // if self.side_progress < 0.0 {
-            //     self.side_progress += 2.0;
-            // }
-        }
-        if self.w_pressed {
-            self.forward_progress += self.delta_time * speed;
-            // self.forward_progress %= 2.0;
-        }
-        if self.s_pressed {
-            self.forward_progress -= self.delta_time * speed;
-            // if self.forward_progress < 0.0 {
-            //     self.forward_progress += 2.0;
-            // }
-        }
+        // if self.d_pressed {
+        //     self.side_progress += self.delta_time * speed;
+        //     // self.side_progress %= 2.0;
+        // }
+        // if self.a_pressed {
+        //     self.side_progress -= self.delta_time * speed;
+        //     // if self.side_progress < 0.0 {
+        //     //     self.side_progress += 2.0;
+        //     // }
+        // }
+        // if self.w_pressed {
+        //     self.forward_progress += self.delta_time * speed;
+        //     // self.forward_progress %= 2.0;
+        // }
+        // if self.s_pressed {
+        //     self.forward_progress -= self.delta_time * speed;
+        //     // if self.forward_progress < 0.0 {
+        //     //     self.forward_progress += 2.0;
+        //     // }
+        // }
+
+        self.camera_controller
+            .update_camera(&mut self.camera, self.delta_time);
+        self.camera_uniform.update_view_proj(&self.camera);
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
     }
 
     pub fn calc_time(&mut self) {

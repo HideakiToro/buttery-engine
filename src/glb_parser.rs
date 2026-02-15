@@ -1,5 +1,5 @@
 use crate::{
-    binary_web_loader::load_binary,
+    binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
     vertex::Vertex,
@@ -211,9 +211,8 @@ pub async fn parse_glb(
     // Parse into Buttery-Engine Mesh Format
     let mut meshes: Vec<Mesh> = Vec::new();
     for group in groups {
-        for mut mesh in group.meshes {
+        for mesh in group.meshes {
             // Load Texture
-            // let diffuse_bytes = include_bytes!("models/tree.png");
             let image_bytes = mesh
                 .image_bytes
                 .unwrap_or(include_bytes!("models/tree.png"));
@@ -293,7 +292,7 @@ pub async fn parse_glb(
                 });
             }
 
-            mesh.indices.reverse();
+            // mesh.indices.reverse();
 
             let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),

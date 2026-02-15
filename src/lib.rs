@@ -1,5 +1,7 @@
 pub mod app;
-pub mod binary_web_loader;
+pub mod binary_loader;
+pub mod camera;
+pub mod camera_controller;
 pub mod glb_parser;
 pub mod gltf_dto;
 pub mod mesh;
