@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fs::File, io::Read};
-use wgpu::{Device, util::DeviceExt};
+use wgpu::{Device, IndexFormat, util::DeviceExt};
 
 use crate::{mesh::Mesh, vertex::Vertex};
 
@@ -174,6 +174,7 @@ pub fn parse_obj(
         index_buffer,
         num_indices: final_indices.len() as u32,
         vertices: final_vertices,
+        index_format: IndexFormat::Uint32,
     };
     // ai-gen: end
 

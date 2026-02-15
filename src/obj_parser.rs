@@ -1,6 +1,6 @@
 use crate::{mesh::Mesh, vertex::Vertex};
 use std::{collections::HashMap, fs::File, io::Read};
-use wgpu::{Device, util::DeviceExt};
+use wgpu::{Device, IndexFormat, util::DeviceExt};
 
 pub fn parse_obj(path: &str, device: &Device) -> anyhow::Result<Mesh> {
     let mut file = File::open(path)?;
@@ -138,6 +138,7 @@ pub fn parse_obj(path: &str, device: &Device) -> anyhow::Result<Mesh> {
         index_buffer,
         num_indices: faces.len() as u32,
         vertices,
+        index_format: IndexFormat::Uint16,
     };
 
     return Ok(mesh);

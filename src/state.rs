@@ -292,21 +292,16 @@ impl State {
 
         let mut meshes = Vec::new();
 
-        let mut glb_meshes = glb_parser::parse_glb(
-            "./src/models/gitf-gitb/cubes.glb",
+        let mut glb_meshes = glb_parser::parse_glb("./src/models/gitf-gitb/cubes.glb", &device)?;
+        meshes.append(&mut glb_meshes);
+
+        let mesh = obj_parser_v2::parse_obj(
+            "./src/models/cube-with-texture/cube.obj",
             Some([0.0, -3.0, 5.0]),
             None,
             &device,
         )?;
-        meshes.append(&mut glb_meshes);
-
-        // let mesh = obj_parser_v2::parse_obj(
-        //     "./src/models/cube-with-texture/cube.obj",
-        //     Some([0.0, -3.0, 5.0]),
-        //     None,
-        //     &device,
-        // )?;
-        // meshes.push(mesh);
+        meshes.push(mesh);
 
         Ok(Self {
             surface,
@@ -458,8 +453,7 @@ impl State {
                         });
 
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
             }
         }

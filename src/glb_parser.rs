@@ -6,7 +6,7 @@ use crate::{
 use serde::Deserialize;
 use std::{collections::HashMap, fs::File, io::Read};
 use thiserror::Error;
-use wgpu::{Device, util::DeviceExt};
+use wgpu::{Device, IndexFormat, util::DeviceExt};
 
 #[derive(Debug, Error)]
 pub enum ParseError {
@@ -22,13 +22,8 @@ pub enum ParseError {
     MissingMesh,
 }
 
-// TODO: Change result type to Vec<Mesh>
-pub fn parse_glb(
-    path: &str,
-    offset: Option<[f32; 3]>,
-    scale: Option<[f32; 3]>,
-    device: &Device,
-) -> anyhow::Result<Vec<Mesh>> {
+// TODO: Parse Textures
+pub fn parse_glb(path: &str, device: &Device) -> anyhow::Result<Vec<Mesh>> {
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -223,6 +218,7 @@ pub fn parse_glb(
                 index_buffer,
                 num_indices: mesh.indices.len() as u32,
                 vertices,
+                index_format: IndexFormat::Uint16,
             });
         }
     }
