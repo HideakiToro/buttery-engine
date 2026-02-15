@@ -1,4 +1,5 @@
 use crate::{
+    binary_web_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
     vertex::Vertex,
@@ -25,17 +26,13 @@ pub enum ParseError {
     MissigImages,
 }
 
-// TODO: Parse Textures
-pub fn parse_glb(
-    buffer: &[u8],
+pub async fn parse_glb(
+    path: &str,
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Vec<Mesh>> {
-    // let mut file = File::open(path)?;
-    // let mut buffer = Vec::new();
-    // file.read_to_end(&mut buffer)?;
-    // let buffer = include_bytes!();
+    let buffer = load_binary(path).await?;
 
     // File Header
     let (file_is_gltf, buffer) = buffer.split_at(4);

@@ -225,9 +225,13 @@ impl State {
 
         let mut meshes = Vec::new();
 
-        let buffer = include_bytes!("./models/gitf-gitb/cubes.glb");
-        let mut glb_meshes =
-            glb_parser::parse_glb(buffer, &device, &queue, &texture_bind_group_layout)?;
+        let mut glb_meshes = glb_parser::parse_glb(
+            "./models/gitf-gitb/cubes.glb",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        )
+        .await?;
         meshes.append(&mut glb_meshes);
 
         Ok(Self {

@@ -235,6 +235,7 @@ dependencies = [
  "console_log",
  "env_logger",
  "image",
+ "js-sys",
  "log",
  "pollster",
  "serde",

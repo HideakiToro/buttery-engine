@@ -1,4 +1,5 @@
 pub mod app;
+pub mod binary_web_loader;
 pub mod glb_parser;
 pub mod gltf_dto;
 pub mod mesh;
