@@ -100,10 +100,18 @@ impl ApplicationHandler<State> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        if event_loop.exiting() {
+            return;
+        }
+
         let state = match &mut self.state {
             Some(canvas) => canvas,
             None => return,
         };
+
+        let _ = state
+            .egui_state
+            .on_window_event(state.window.as_ref(), &event);
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),

@@ -50,6 +50,13 @@ pub struct State {
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+
+    pub egui_ctx: egui::Context,
+    pub egui_state: egui_winit::State,
+    pub egui_renderer: egui_wgpu::Renderer,
+
+    open_menu: bool,
+    debug_text: String,
 }
 
 impl State {
@@ -298,6 +305,21 @@ impl State {
         .await?;
         meshes.append(&mut glb_meshes);
 
+        let egui_ctx = egui::Context::default();
+        let egui_state = egui_winit::State::new(
+            egui_ctx.clone(),
+            egui::ViewportId::ROOT,
+            &window,
+            None,
+            None,
+            None,
+        );
+        let egui_renderer = egui_wgpu::Renderer::new(
+            &device,
+            wgpu::TextureFormat::Bgra8UnormSrgb,
+            egui_wgpu::RendererOptions::PREDICTABLE,
+        );
+
         Ok(Self {
             surface,
             device,
@@ -326,6 +348,13 @@ impl State {
             camera_bind_group,
             camera_buffer,
             camera_uniform,
+
+            egui_ctx,
+            egui_state,
+            egui_renderer,
+
+            open_menu: false,
+            debug_text: "I am debug text".to_string(),
         })
     }
 
@@ -438,6 +467,120 @@ impl State {
             }
         }
 
+        // Start UI-Setup
+        let raw_input = self.egui_state.take_egui_input(&self.window);
+
+        let mut style = (*self.egui_ctx.style()).clone();
+        // Example: rounder corners and more spacing
+        style.visuals.window_corner_radius = 20.0.into();
+        style.visuals.window_fill = egui::Color32::from_rgb(0, 0, 255);
+        style.visuals.collapsing_header_frame = false;
+        self.egui_ctx.set_style(style);
+
+        self.egui_ctx.begin_pass(raw_input);
+
+        // egui::TopBottomPanel::top("app")
+        //     .frame(egui::Frame::NONE.fill(egui::Color32::from_rgb(30, 30, 255)))
+        //     .show(&self.egui_ctx, |ui| {
+        //         ui.label("Hello from egui!");
+        //         ui.label(format!("Meshes: {}", self.meshes.len()));
+        //         ui.separator();
+        //         ui.text_edit_singleline(&mut self.debug_text);
+        //         if ui.button("Print text").clicked() {
+        //             println!("Text: {}", self.debug_text);
+        //         }
+        //     });
+
+        if self.open_menu {
+            egui::Area::new("central_panel".into())
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(&self.egui_ctx, |ui| {
+                    // Constrain the whole area
+                    ui.set_max_width(600.0);
+                    ui.set_max_height(400.0);
+                    egui::Frame::NONE
+                        .fill(egui::Color32::from_rgb(30, 30, 40))
+                        .corner_radius(10.0)
+                        .inner_margin(egui::Margin::same(16))
+                        .show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.label("Hello from egui!");
+                                ui.label(format!("Meshes: {}", self.meshes.len()));
+                                ui.separator();
+                                ui.text_edit_singleline(&mut self.debug_text);
+                                if ui.button("Print text").clicked() {
+                                    println!("Text: {}", self.debug_text);
+                                }
+                            });
+                        });
+                });
+        }
+
+        // egui::Window::new("Debug UI").show(&self.egui_ctx, |ui| {
+        //     ui.label("Hello from egui!");
+        //     ui.label(format!("Meshes: {}", self.meshes.len()));
+        //     ui.separator();
+        //     ui.text_edit_singleline(&mut self.debug_text);
+        //     if ui.button("Print text").clicked() {
+        //         println!("Text: {}", self.debug_text);
+        //     }
+        // });
+        // End egui frame
+        let full_output = self.egui_ctx.end_pass();
+        let paint_jobs = self
+            .egui_ctx
+            .tessellate(full_output.shapes, full_output.pixels_per_point);
+
+        // Apply window commands (cursor, IME, etc.)
+        let platform_output = full_output.platform_output;
+        self.egui_state
+            .handle_platform_output(&self.window, platform_output);
+
+        // Upload textures
+        for (id, image_delta) in &full_output.textures_delta.set {
+            self.egui_renderer
+                .update_texture(&self.device, &self.queue, *id, image_delta);
+        }
+        // End UI-Setup
+
+        // Render UI over 3D-Meshes
+        let screen_desc = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [self.config.width, self.config.height],
+            pixels_per_point: self.window.scale_factor() as f32,
+        };
+        self.egui_renderer.update_buffers(
+            &self.device,
+            &self.queue,
+            &mut encoder,
+            &paint_jobs,
+            &screen_desc,
+        );
+
+        let ui_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("egui UI pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        });
+        let mut ui_pass = ui_pass.forget_lifetime();
+        self.egui_renderer
+            .render(&mut ui_pass, &paint_jobs, &screen_desc);
+        drop(ui_pass);
+
+        // Free textures that egui wants to remove
+        for id in &full_output.textures_delta.free {
+            self.egui_renderer.free_texture(id);
+        }
+
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
@@ -460,9 +603,13 @@ impl State {
             // (KeyCode::KeyD, pressed) => {
             //     self.d_pressed = pressed;
             // }
-            (code, is_pressed) => {
+            (KeyCode::KeyE, true) => {
+                self.open_menu = !self.open_menu;
+            }
+            (code, is_pressed) if !self.open_menu => {
                 self.camera_controller.handle_key(code, is_pressed);
             }
+            _ => {}
         }
     }
 
