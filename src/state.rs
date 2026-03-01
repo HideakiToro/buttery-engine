@@ -40,7 +40,7 @@ pub struct State {
 
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
+    camera_light_bind_group: wgpu::BindGroup,
 
     _light: LightUniform,
     _light_buffer: wgpu::Buffer,
@@ -158,7 +158,7 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group_layout =
+        let camera_light_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -196,8 +196,8 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
+        let camera_light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_light_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -208,7 +208,7 @@ impl State {
                     resource: light_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("camera_bind_group"),
+            label: Some("camera_light_bind_group"),
         });
 
         let offset_bind_group_layout =
@@ -237,7 +237,7 @@ impl State {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
-                    &camera_bind_group_layout,
+                    &camera_light_bind_group_layout,
                     &offset_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -295,7 +295,7 @@ impl State {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&camera_light_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = device.create_shader_module(wgpu::include_wgsl!("light.wgsl"));
@@ -406,7 +406,7 @@ impl State {
             camera_controller,
             projection,
 
-            camera_bind_group,
+            camera_light_bind_group,
             camera_buffer,
             camera_uniform,
 
@@ -519,14 +519,14 @@ impl State {
 
                     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                     render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
-                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
                     render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
 
                     render_pass.set_pipeline(&self.render_pipeline);
                 }
 
                 //Camera
-                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+                render_pass.set_bind_group(1, &self.camera_light_bind_group, &[]);
 
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(2, &mesh.offset_bind_group, &[]);
