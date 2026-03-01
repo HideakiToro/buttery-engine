@@ -277,7 +277,7 @@ impl State {
         );
         let egui_renderer = egui_wgpu::Renderer::new(
             &device,
-            wgpu::TextureFormat::Bgra8UnormSrgb,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
             egui_wgpu::RendererOptions::PREDICTABLE,
         );
 
