@@ -277,7 +277,10 @@ impl State {
         );
         let egui_renderer = egui_wgpu::Renderer::new(
             &device,
+            #[cfg(target_arch = "wasm32")]
             wgpu::TextureFormat::Rgba8UnormSrgb,
+            #[cfg(not(target_arch = "wasm32"))]
+            wgpu::TextureFormat::Bgra8UnormSrgb,
             egui_wgpu::RendererOptions::PREDICTABLE,
         );
 
