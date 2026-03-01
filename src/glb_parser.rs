@@ -286,15 +286,16 @@ pub async fn parse_glb(
 
             // Parse the actual mesh
             let mut vertices = Vec::new();
-            for ((pos, _normal), texture) in mesh
+            for ((position, normals), tex_coords) in mesh
                 .vertex_positions
-                .iter()
+                .into_iter()
                 .zip(mesh.vertex_normals)
                 .zip(mesh.texture_positions)
             {
                 vertices.push(Vertex {
-                    position: pos.clone(),
-                    tex_coords: texture.clone(),
+                    position,
+                    tex_coords,
+                    normals,
                 });
             }
 

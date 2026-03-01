@@ -1,4 +1,5 @@
 // IMPORTANT: This code is not actively maintained. It is recommended to use glb instead of obj.
+// IMPORTANT: This code has not been verified to work since adding normals.
 
 use bytemuck::bytes_of;
 use image::GenericImageView;
@@ -90,7 +91,7 @@ pub fn parse_obj(
                 }
 
                 normals.push(ObjNormal {
-                    _normal: normal.try_into().unwrap(),
+                    normal: normal.try_into().unwrap(),
                 });
             }
             &"f" => {
@@ -162,9 +163,15 @@ pub fn parse_obj(
                         .and_then(|ti| textures.get(ti as usize))
                         .map(|t| t.position)
                         .unwrap_or([-1.0, -1.0]);
+                    let norm = p
+                        .normal_index
+                        .and_then(|ni| normals.get(ni as usize))
+                        .map(|n| n.normal)
+                        .unwrap_or([-1.0, -1.0, -1.0]);
                     let v = Vertex {
                         position: pos,
                         tex_coords: tex,
+                        normals: norm,
                     };
                     let idx = final_vertices.len() as u32;
                     final_vertices.push(v);
@@ -292,7 +299,7 @@ struct ObjTextureCoordinate {
 }
 
 struct ObjNormal {
-    _normal: [f32; 3],
+    normal: [f32; 3],
 }
 
 struct ObjFace {
