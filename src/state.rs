@@ -42,8 +42,8 @@ pub struct State {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
-    light: LightUniform,
-    light_buffer: wgpu::Buffer,
+    _light: LightUniform,
+    _light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
 
@@ -418,8 +418,8 @@ impl State {
             camera_buffer,
             camera_uniform,
 
-            light,
-            light_buffer,
+            _light: light,
+            _light_buffer: light_buffer,
             light_bind_group,
             light_render_pipeline,
 
