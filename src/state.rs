@@ -1,23 +1,14 @@
-use bytemuck::bytes_of;
-use cgmath::Vector3;
+use cgmath::Deg;
 use std::sync::Arc;
 use web_time::{Duration, Instant};
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, ShaderStages,
-    util::{BufferInitDescriptor, DeviceExt},
-};
+use wgpu::util::DeviceExt;
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
-// #[cfg(target_arch = "wasm32")]
-// use wasm_bindgen::prelude::*;
-
 use crate::{
-    camera::{Camera, CameraUniform},
+    camera::{Camera, CameraUniform, Projection},
     camera_controller::CameraController,
     glb_parser,
     mesh::Mesh,
-    offset::OffsetUniform,
     vertex::Vertex,
 };
 
@@ -32,21 +23,11 @@ pub struct State {
     meshes: Vec<Mesh>,
     depth_format: wgpu::TextureFormat,
     last_frame_time: Instant,
-    // start_time: Instant,
     pub window: Arc<Window>,
-    // w_pressed: bool,
-    // a_pressed: bool,
-    // s_pressed: bool,
-    // d_pressed: bool,
-    forward_progress: f32,
-    side_progress: f32,
     delta_time: f32,
-    offset: OffsetUniform,
-    offset_buffer: Buffer,
-    offset_bind_group: BindGroup,
-    show_frame_times: bool,
     camera: Camera,
     camera_controller: CameraController,
+    projection: Projection,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -56,7 +37,7 @@ pub struct State {
     pub egui_renderer: egui_wgpu::Renderer,
 
     open_menu: bool,
-    debug_text: String,
+    _debug_text: String,
 }
 
 impl State {
@@ -149,54 +130,13 @@ impl State {
             });
 
         // Movement
-        let offset = OffsetUniform {
-            offset: [0.0, 0.0, 0.0, 0.0],
-        };
-
-        let offset_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Offset Buffer"),
-            contents: bytes_of(&offset),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let offset_bind_group_layout =
-            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("Offset BindGroup Layout"),
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    count: None,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                }],
-            });
-
-        let offset_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Offset Bind Group"),
-            layout: &offset_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: offset_buffer.as_entire_binding(),
-            }],
-        });
-
-        let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
-
-        let camera_controller = CameraController::new(5.0);
+        let camera = Camera::new((0.0, 4.0, 5.0), Deg(-90.0), Deg(-35.0));
+        let projection =
+            Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let camera_controller = CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+        camera_uniform.update_view_proj(&camera, &projection);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -237,11 +177,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &offset_bind_group_layout,
-                    &texture_bind_group_layout,
-                    &camera_bind_group_layout,
-                ],
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -331,20 +267,12 @@ impl State {
             meshes,
             depth_format,
             last_frame_time: web_time::Instant::now(),
-            // start_time: web_time::Instant::now(),
-            // w_pressed: false,
-            // a_pressed: false,
-            // s_pressed: false,
-            // d_pressed: false,
-            forward_progress: 0.5,
-            side_progress: 0.5,
             delta_time: 1.0 / 60.0,
-            offset,
-            offset_buffer,
-            offset_bind_group,
-            show_frame_times: false,
+
             camera,
             camera_controller,
+            projection,
+
             camera_bind_group,
             camera_buffer,
             camera_uniform,
@@ -354,7 +282,7 @@ impl State {
             egui_renderer,
 
             open_menu: false,
-            debug_text: "I am debug text".to_string(),
+            _debug_text: "I am debug text".to_string(),
         })
     }
 
@@ -366,6 +294,7 @@ impl State {
                 let height = if height > 2048 { 2048 } else { height };
                 (width, height)
             };
+            self.projection.resize(width, height);
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
@@ -374,14 +303,6 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        // I don't see a logical reason for this to panic, but it might, so it could cause instability...
-        // let progress = now
-        //     .checked_duration_since(self.start_time)
-        //     .unwrap()
-        //     .as_secs_f32()
-        //     % 2.0;
-        // println!("{progress}");
-
         let depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Depth Texture"),
             size: wgpu::Extent3d {
@@ -448,19 +369,12 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            // Offset
-            self.offset.offset[2] = self.forward_progress * 4.0 - 2.0;
-            self.offset.offset[0] = self.side_progress * 4.0 - 2.0;
-            self.queue
-                .write_buffer(&self.offset_buffer, 0, bytes_of(&self.offset));
-            render_pass.set_bind_group(0, &self.offset_bind_group, &[]);
-
             //Camera
-            render_pass.set_bind_group(2, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
 
             // Cloning Meshes here would literally clone every model on each frame...
             for mesh in &self.meshes {
-                render_pass.set_bind_group(1, &mesh.texture_bind_group, &[]);
+                render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
@@ -479,18 +393,6 @@ impl State {
 
         self.egui_ctx.begin_pass(raw_input);
 
-        // egui::TopBottomPanel::top("app")
-        //     .frame(egui::Frame::NONE.fill(egui::Color32::from_rgb(30, 30, 255)))
-        //     .show(&self.egui_ctx, |ui| {
-        //         ui.label("Hello from egui!");
-        //         ui.label(format!("Meshes: {}", self.meshes.len()));
-        //         ui.separator();
-        //         ui.text_edit_singleline(&mut self.debug_text);
-        //         if ui.button("Print text").clicked() {
-        //             println!("Text: {}", self.debug_text);
-        //         }
-        //     });
-
         if self.open_menu {
             egui::Area::new("central_panel".into())
                 .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
@@ -504,27 +406,27 @@ impl State {
                         .inner_margin(egui::Margin::same(16))
                         .show(ui, |ui| {
                             ui.vertical_centered(|ui| {
-                                ui.label("Hello from egui!");
                                 ui.label(format!("Meshes: {}", self.meshes.len()));
-                                ui.separator();
-                                ui.text_edit_singleline(&mut self.debug_text);
-                                if ui.button("Print text").clicked() {
-                                    println!("Text: {}", self.debug_text);
-                                }
+                                ui.label(format!(
+                                    "CameraPos: ({} | {} | {})",
+                                    self.camera.position.x,
+                                    self.camera.position.y,
+                                    self.camera.position.z
+                                ));
+                                ui.label(format!(
+                                    "Delta-Time: {} fps",
+                                    (1.0 / self.delta_time * 10.0).floor() / 10.0
+                                ));
+                                // ui.separator();
+                                // ui.text_edit_singleline(&mut self.debug_text);
+                                // if ui.button("Print text").clicked() {
+                                //     println!("Text: {}", self.debug_text);
+                                // }
                             });
                         });
                 });
         }
 
-        // egui::Window::new("Debug UI").show(&self.egui_ctx, |ui| {
-        //     ui.label("Hello from egui!");
-        //     ui.label(format!("Meshes: {}", self.meshes.len()));
-        //     ui.separator();
-        //     ui.text_edit_singleline(&mut self.debug_text);
-        //     if ui.button("Print text").clicked() {
-        //         println!("Text: {}", self.debug_text);
-        //     }
-        // });
         // End egui frame
         let full_output = self.egui_ctx.end_pass();
         let paint_jobs = self
@@ -590,59 +492,28 @@ impl State {
 
     pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
         match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            // (KeyCode::KeyW, pressed) => {
-            //     self.w_pressed = pressed;
-            // }
-            // (KeyCode::KeyA, pressed) => {
-            //     self.a_pressed = pressed;
-            // }
-            // (KeyCode::KeyS, pressed) => {
-            //     self.s_pressed = pressed;
-            // }
-            // (KeyCode::KeyD, pressed) => {
-            //     self.d_pressed = pressed;
-            // }
+            (KeyCode::Escape, true) => {
+                if self.open_menu {
+                    self.open_menu = false;
+                } else {
+                    event_loop.exit();
+                }
+            }
             (KeyCode::KeyE, true) => {
                 self.open_menu = !self.open_menu;
             }
             (code, is_pressed) if !self.open_menu => {
-                self.camera_controller.handle_key(code, is_pressed);
+                self.camera_controller.process_keyboard(code, is_pressed);
             }
             _ => {}
         }
     }
 
     pub fn update(&mut self) {
-        // let mut speed = 1.0_f32;
-        // if (self.d_pressed || self.a_pressed) && (self.w_pressed || self.s_pressed) {
-        //     speed = (speed * 2.0).sqrt() / 2.0;
-        // }
-
-        // if self.d_pressed {
-        //     self.side_progress += self.delta_time * speed;
-        //     // self.side_progress %= 2.0;
-        // }
-        // if self.a_pressed {
-        //     self.side_progress -= self.delta_time * speed;
-        //     // if self.side_progress < 0.0 {
-        //     //     self.side_progress += 2.0;
-        //     // }
-        // }
-        // if self.w_pressed {
-        //     self.forward_progress += self.delta_time * speed;
-        //     // self.forward_progress %= 2.0;
-        // }
-        // if self.s_pressed {
-        //     self.forward_progress -= self.delta_time * speed;
-        //     // if self.forward_progress < 0.0 {
-        //     //     self.forward_progress += 2.0;
-        //     // }
-        // }
-
         self.camera_controller
             .update_camera(&mut self.camera, self.delta_time);
-        self.camera_uniform.update_view_proj(&self.camera);
+        self.camera_uniform
+            .update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -656,16 +527,6 @@ impl State {
             .checked_duration_since(self.last_frame_time)
             .unwrap_or(Duration::from_millis(16))
             .as_secs_f32();
-        // println!("Rendered in {:#?}ms", delta);
-
-        if self.show_frame_times {
-            let delta_micro = now
-                .checked_duration_since(self.last_frame_time)
-                .unwrap_or(Duration::from_millis(16))
-                .as_micros();
-
-            println!("{delta_micro}");
-        }
 
         self.last_frame_time = now;
         self.delta_time = delta;
