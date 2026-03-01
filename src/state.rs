@@ -536,8 +536,8 @@ impl State {
                     event_loop.exit();
                 }
             }
-            (KeyCode::KeyE, true) => {
-                self.open_menu = !self.open_menu;
+            (KeyCode::KeyE, true) if !self.open_menu => {
+                self.open_menu = true;
             }
             (code, is_pressed) if !self.open_menu => {
                 self.camera_controller.process_keyboard(code, is_pressed);
