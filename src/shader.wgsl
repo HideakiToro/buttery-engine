@@ -20,7 +20,7 @@ struct Light {
     position: vec4<f32>,
     color: vec4<f32>,
 };
-@group(3) @binding(0)
+@group(1) @binding(1)
 var<uniform> light: Light;
 
 struct VertexInput {

@@ -44,7 +44,6 @@ pub struct State {
 
     _light: LightUniform,
     _light_buffer: wgpu::Buffer,
-    light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
 
     pub egui_ctx: egui::Context,
@@ -161,25 +160,54 @@ impl State {
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
                 label: Some("camera_bind_group_layout"),
             });
 
+        let light = LightUniform {
+            position: [0.0, 1.0, 0.0, 0.0],
+            color: [1.0, 1.0, 1.0, 0.0],
+        };
+
+        let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Light VB"),
+            contents: bytemuck::cast_slice(&[light]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: light_buffer.as_entire_binding(),
+                },
+            ],
             label: Some("camera_bind_group"),
         });
 
@@ -198,41 +226,6 @@ impl State {
                 }],
             });
 
-        let light = LightUniform {
-            position: [0.0, 1.0, 0.0, 0.0],
-            color: [1.0, 1.0, 1.0, 0.0],
-        };
-
-        let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Light VB"),
-            contents: bytemuck::cast_slice(&[light]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let light_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: None,
-            });
-
-        let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &light_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: light_buffer.as_entire_binding(),
-            }],
-            label: None,
-        });
-
         // More Bindgroup stuff here...
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
@@ -246,7 +239,6 @@ impl State {
                     &texture_bind_group_layout,
                     &camera_bind_group_layout,
                     &offset_bind_group_layout,
-                    &light_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -303,7 +295,7 @@ impl State {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+                bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = device.create_shader_module(wgpu::include_wgsl!("light.wgsl"));
@@ -420,7 +412,6 @@ impl State {
 
             _light: light,
             _light_buffer: light_buffer,
-            light_bind_group,
             light_render_pipeline,
 
             egui_ctx,
@@ -529,7 +520,6 @@ impl State {
                     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                     render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                     render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-                    render_pass.set_bind_group(1, &self.light_bind_group, &[]);
                     render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
 
                     render_pass.set_pipeline(&self.render_pipeline);
@@ -537,7 +527,6 @@ impl State {
 
                 //Camera
                 render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-                render_pass.set_bind_group(3, &self.light_bind_group, &[]);
 
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(2, &mesh.offset_bind_group, &[]);
