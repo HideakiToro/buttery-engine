@@ -1,7 +1,11 @@
+use bytemuck::bytes_of;
 use cgmath::Deg;
 use std::sync::Arc;
 use web_time::{Duration, Instant};
-use wgpu::util::DeviceExt;
+use wgpu::{
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
+    util::DeviceExt,
+};
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
 use crate::{
@@ -9,6 +13,7 @@ use crate::{
     camera_controller::CameraController,
     glb_parser,
     mesh::Mesh,
+    offset::OffsetUniform,
     vertex::Vertex,
 };
 
@@ -168,6 +173,21 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
+        let offset_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Offset BindGroup Layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    count: None,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                }],
+            });
+
         // More Bindgroup stuff here...
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
@@ -177,7 +197,11 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &offset_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -237,6 +261,7 @@ impl State {
             &device,
             &queue,
             &texture_bind_group_layout,
+            &offset_bind_group_layout,
         )
         .await?;
         meshes.append(&mut glb_meshes);
@@ -373,8 +398,17 @@ impl State {
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
 
             // Cloning Meshes here would literally clone every model on each frame...
-            for mesh in &self.meshes {
+            for (index, mesh) in self.meshes.iter().enumerate() {
+                if index == 0 {
+                    // Offset
+                    let offset = [0.0, 0.0, -3.0, 0.0];
+                    let uniform = OffsetUniform { offset };
+                    self.queue
+                        .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
+                }
+
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
+                render_pass.set_bind_group(2, &mesh.offset_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);

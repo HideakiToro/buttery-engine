@@ -14,6 +14,9 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
+@group(2) @binding(0)
+var<uniform> u_offset: OffsetUniform;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     // @location(1) color: vec3<f32>,
@@ -33,7 +36,7 @@ fn vs_main(
     var out: VertexOutput;
     // out.color = model.color;
     out.tex_coords = model.tex_coords;
-    var pos = vec4<f32>(model.position, 1.0);
+    var pos = vec4<f32>(model.position, 1.0) + u_offset.offset;
     out.clip_position = camera.view_proj * pos;
     return out;
 }

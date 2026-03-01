@@ -1,10 +1,14 @@
 // IMPORTANT: This code is not actively maintained. It is recommended to use glb instead of obj.
 
+use bytemuck::bytes_of;
 use image::GenericImageView;
 use std::{collections::HashMap, fs::File, io::Read};
-use wgpu::{BindGroupLayout, Device, IndexFormat, Queue, util::DeviceExt};
+use wgpu::{
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BufferUsages, Device, IndexFormat, Queue,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 
-use crate::{mesh::Mesh, vertex::Vertex};
+use crate::{mesh::Mesh, offset::OffsetUniform, vertex::Vertex};
 
 pub fn parse_obj(
     path: &str,
@@ -13,6 +17,7 @@ pub fn parse_obj(
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
+    offset_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Mesh> {
     let mut file = File::open(path)?;
     let mut content = String::new();
@@ -234,25 +239,46 @@ pub fn parse_obj(
         ],
     });
 
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Index Buffer"),
         contents: bytemuck::cast_slice(&final_indices),
-        usage: wgpu::BufferUsages::INDEX,
+        usage: BufferUsages::INDEX,
     });
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("Vertex Buffer"),
         contents: bytemuck::cast_slice(&final_vertices),
-        usage: wgpu::BufferUsages::VERTEX,
+        usage: BufferUsages::VERTEX,
+    });
+    // ai-gen: end
+
+    let offset = OffsetUniform {
+        offset: [0.0, 0.0, 0.0, 0.0],
+    };
+
+    let offset_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: Some("Offset Buffer"),
+        contents: bytes_of(&offset),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
+
+    let offset_bind_group = device.create_bind_group(&BindGroupDescriptor {
+        label: Some("Offset Bind Group"),
+        layout: offset_bind_group_layout,
+        entries: &[BindGroupEntry {
+            binding: 0,
+            resource: offset_buffer.as_entire_binding(),
+        }],
     });
 
     let mesh = Mesh {
         index_buffer,
         vertex_buffer,
+        offset_buffer,
+        offset_bind_group,
         num_indices: final_indices.len() as u32,
         index_format: IndexFormat::Uint32,
         texture_bind_group,
     };
-    // ai-gen: end
 
     return Ok(mesh);
 }

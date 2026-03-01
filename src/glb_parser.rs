@@ -2,11 +2,16 @@ use crate::{
     binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
+    offset::OffsetUniform,
     vertex::Vertex,
 };
+use bytemuck::bytes_of;
 use image::GenericImageView;
 use thiserror::Error;
-use wgpu::{BindGroupLayout, Device, IndexFormat, Queue, util::DeviceExt};
+use wgpu::{
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BufferUsages, Device, IndexFormat, Queue,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 
 #[derive(Debug, Error)]
 pub enum ParseError {
@@ -31,6 +36,7 @@ pub async fn parse_glb(
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
+    offset_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Vec<Mesh>> {
     let buffer = load_binary(path).await?;
 
@@ -294,21 +300,42 @@ pub async fn parse_glb(
 
             // mesh.indices.reverse();
 
-            let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Index Buffer"),
                 contents: bytemuck::cast_slice(&mesh.indices),
-                usage: wgpu::BufferUsages::INDEX,
+                usage: BufferUsages::INDEX,
             });
 
-            let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
                 contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
+                usage: BufferUsages::VERTEX,
+            });
+
+            let offset = OffsetUniform {
+                offset: [0.0, 0.0, 0.0, 0.0],
+            };
+
+            let offset_buffer = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("Offset Buffer"),
+                contents: bytes_of(&offset),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            });
+
+            let offset_bind_group = device.create_bind_group(&BindGroupDescriptor {
+                label: Some("Offset Bind Group"),
+                layout: offset_bind_group_layout,
+                entries: &[BindGroupEntry {
+                    binding: 0,
+                    resource: offset_buffer.as_entire_binding(),
+                }],
             });
 
             meshes.push(Mesh {
                 index_buffer,
                 vertex_buffer,
+                offset_buffer,
+                offset_bind_group,
                 num_indices: mesh.indices.len() as u32,
                 index_format: IndexFormat::Uint16,
                 texture_bind_group,
