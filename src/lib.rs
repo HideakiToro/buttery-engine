@@ -6,7 +6,6 @@ pub mod glb_parser;
 pub mod gltf_dto;
 pub mod light;
 pub mod mesh;
-pub mod obj_parser_v2;
 pub mod offset;
 pub mod state;
 pub mod vertex;
