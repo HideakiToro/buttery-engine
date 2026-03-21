@@ -80,7 +80,7 @@ impl CameraUniform {
         use cgmath::SquareMatrix;
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
-            view_position: [0.0_f32; 4],
+            view_position: [0.0; 4],
         }
     }
 

@@ -62,11 +62,13 @@ impl CameraController {
         }
     }
 
+    // Currently unused
     pub fn handle_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
         self.rotate_horizontal = mouse_dx as f32;
         self.rotate_vertical = mouse_dy as f32;
     }
 
+    // Currently unused
     pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
         self.scroll = -match delta {
             // I'm assuming a line is about 100 pixels
