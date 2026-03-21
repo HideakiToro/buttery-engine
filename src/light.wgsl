@@ -2,6 +2,7 @@ struct Light {
     view_proj: mat4x4<f32>,
     view_position: vec4<f32>,
     color: vec4<f32>,
+    direction: vec4<f32>,
 };
 @group(0) @binding(1)
 var<uniform> light: Light;
