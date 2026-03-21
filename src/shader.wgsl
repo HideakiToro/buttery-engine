@@ -18,6 +18,13 @@ struct Light {
 @group(1) @binding(1)
 var<uniform> light: Light;
 
+struct BiasUniform {
+    bias: vec4<f32>,
+};
+
+@group(1) @binding(2)
+var<uniform> u_bias: BiasUniform;
+
 struct OffsetUniform {
     offset: vec4<f32>,
 };
@@ -101,8 +108,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var uv = proj.xy * 0.5 + vec2<f32>(0.5, 0.5);
     uv.y = 1.0 - uv.y;
     let depth = proj.z;
-    let bias = 0.000001;
-    var shadow = textureSampleCompare(shadow_map, shadow_sampler, uv, depth - bias);
+    var shadow = textureSampleCompare(shadow_map, shadow_sampler, uv, depth - u_bias.bias.x);
 
     if shadow >= 0.9 {
         shadow = 1.0;

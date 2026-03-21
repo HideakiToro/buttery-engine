@@ -25,3 +25,9 @@ impl LightUniform {
         self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
     }
 }
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct BiasUniform {
+    pub bias: [f32; 4],
+}

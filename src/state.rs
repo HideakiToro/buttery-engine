@@ -9,7 +9,7 @@ use wgpu::{
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
 use crate::{
-    camera::{Camera, CameraUniform, Projection}, camera_controller::CameraController, glb_parser, light::LightUniform, mesh::Mesh, offset::OffsetUniform, vertex::Vertex
+    camera::{Camera, CameraUniform, Projection}, camera_controller::CameraController, glb_parser, light::{BiasUniform, LightUniform}, mesh::Mesh, offset::OffsetUniform, vertex::Vertex
 };
 
 // This will store the state of the game
@@ -185,6 +185,16 @@ impl State {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("camera_bind_group_layout"),
             });
@@ -198,8 +208,23 @@ impl State {
         light.update_view_proj(&light_camera, &light_projection);
 
         let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Light VB"),
+            label: Some("Light Buffer"),
             contents: bytemuck::cast_slice(&[light]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let bias_uniform = BiasUniform {
+            bias: [0.000001; 4]
+        };
+        #[cfg(target_arch = "wasm32")]
+        let bias_uniform = BiasUniform {
+            bias: [0.000002; 4]
+        };
+
+        let bias_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Bias Buffer"),
+            contents: bytemuck::cast_slice(&[bias_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -213,6 +238,10 @@ impl State {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: light_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: bias_buffer.as_entire_binding(),
                 },
             ],
             label: Some("camera_light_bind_group"),
@@ -235,7 +264,18 @@ impl State {
 
         let shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Shadow Resolved Depth"),
-            size: wgpu::Extent3d { width: 8192, height: 8192, depth_or_array_layers: 1 },
+            #[cfg(not(target_arch = "wasm32"))]
+            size: wgpu::Extent3d {
+                width: 8192,
+                height: 8192,
+                depth_or_array_layers: 1
+            },
+            #[cfg(target_arch = "wasm32")]
+            size: wgpu::Extent3d {
+                width: 2048,
+                height: 2048,
+                depth_or_array_layers: 1
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
