@@ -1,6 +1,6 @@
 use bytemuck::bytes_of;
-use cgmath::Deg;
-use std::sync::Arc;
+use cgmath::{Deg, Point3, Rad};
+use std::{f32::consts::PI, sync::Arc};
 use web_time::{Duration, Instant};
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
@@ -20,6 +20,8 @@ pub struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pub window: Arc<Window>,
+    msaa_samples: u32,
+    msaa_texture: wgpu::TextureView,
     render_pipeline: wgpu::RenderPipeline,
 
     meshes: Vec<Mesh>,
@@ -59,6 +61,8 @@ impl State {
     // but we will in the next tutorial
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
+
+        let msaa_samples = 4;
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -230,12 +234,8 @@ impl State {
             });
 
         let shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Shadow Map"),
-            size: wgpu::Extent3d {
-                width: 8192,
-                height: 8192,
-                depth_or_array_layers: 1,
-            },
+            label: Some("Shadow Resolved Depth"),
+            size: wgpu::Extent3d { width: 8192, height: 8192, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -243,8 +243,7 @@ impl State {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
-        
-        let shadow_view = shadow_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let shadow_view = shadow_texture.create_view(&Default::default());
         
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: Some(wgpu::CompareFunction::LessEqual),
@@ -311,6 +310,24 @@ impl State {
                 push_constant_ranges: &[],
             });
 
+        let msaa_texture = device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("MSAA Texture"),
+                size: wgpu::Extent3d {
+                    width: config.width,
+                    height: config.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: msaa_samples,
+                dimension: wgpu::TextureDimension::D2,
+                format: config.format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
@@ -352,7 +369,7 @@ impl State {
                 bias: wgpu::DepthBiasState::default(),
             }), // 1.
             multisample: wgpu::MultisampleState {
-                count: 1,                         // 2.
+                count: msaa_samples,                         // 2.
                 mask: !0,                         // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
@@ -446,6 +463,8 @@ impl State {
             device,
             queue,
             window,
+            msaa_samples,
+            msaa_texture,
             render_pipeline,
 
             meshes,
@@ -503,6 +522,22 @@ impl State {
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
+            self.msaa_texture = self.device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("MSAA Texture"),
+                    size: wgpu::Extent3d {
+                        width,
+                        height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: self.msaa_samples,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: self.config.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default());
             self.is_surface_configured = true;
         }
     }
@@ -516,7 +551,7 @@ impl State {
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: self.msaa_samples,
             dimension: wgpu::TextureDimension::D2,
             format: self.depth_format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -582,8 +617,8 @@ impl State {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
+                    view: &self.msaa_texture,
+                    resolve_target: Some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.1,
@@ -617,15 +652,6 @@ impl State {
                     let uniform = OffsetUniform { offset };
                     self.queue
                         .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
-
-                    // render_pass.set_pipeline(&self.light_render_pipeline);
-
-                    // render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                    // render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
-                    // render_pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
-                    // render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
-
-                    // render_pass.set_pipeline(&self.render_pipeline);
                 }
 
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
@@ -770,7 +796,14 @@ impl State {
             (KeyCode::KeyL, true) => {
                 self.show_light_view = !self.show_light_view;
             }
-            (code, is_pressed) if !self.open_menu => {
+            (KeyCode::KeyR, true) => {
+                self.camera.yaw -= Rad(PI * 0.5);
+            }
+            (KeyCode::KeyO, true) => {
+                self.camera.yaw = Rad(-PI * 0.5);
+                self.camera.position = Point3::new(0.0, 4.0, 6.0);
+            }
+            (code, is_pressed) if !self.open_menu && !self.show_light_view => {
                 self.camera_controller.process_keyboard(code, is_pressed);
             }
             _ => {}
