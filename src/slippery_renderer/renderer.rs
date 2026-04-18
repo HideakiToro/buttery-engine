@@ -7,10 +7,14 @@ use super::{
     vertex::Vertex,
 };
 use crate::core::{
-    camera::Camera, renderer::ButteryRenderer, ui::ButteryUIModel, world_model::ButteryWorldModel,
+    camera::Camera,
+    renderer::ButteryRenderer,
+    ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
+    world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;
 use cgmath::Deg;
+use egui::{Align2, Ui};
 use std::sync::Arc;
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
@@ -519,6 +523,24 @@ impl SlipperyRenderer {
             offset_bind_group_layout,
         })
     }
+
+    pub fn ui_model_to_ui(ui: &mut Ui, element: &ButteryUIElement) {
+        match element {
+            ButteryUIElement::Default => {
+                ui.label("".to_string());
+            }
+            ButteryUIElement::Text(text) => {
+                ui.label(text);
+            }
+            ButteryUIElement::Column(children) => {
+                ui.vertical_centered(|mut ui| {
+                    for child in children {
+                        Self::ui_model_to_ui(&mut ui, child);
+                    }
+                });
+            }
+        }
+    }
 }
 
 impl ButteryRenderer for SlipperyRenderer {
@@ -685,46 +707,31 @@ impl ButteryRenderer for SlipperyRenderer {
 
         self.egui_ctx.begin_pass(raw_input);
 
-        if let Some(_ui_model) = &self.ui_model {
-            egui::Area::new("central_panel".into())
-                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                .show(&self.egui_ctx, |ui| {
-                    // Constrain the whole area
-                    ui.set_max_width(600.0);
-                    ui.set_max_height(400.0);
-                    egui::Frame::NONE
-                        .fill(egui::Color32::from_rgb(30, 30, 40))
-                        .corner_radius(10.0)
-                        .inner_margin(egui::Margin::same(16))
-                        .show(ui, |ui| {
-                            ui.vertical_centered(|ui| {
-                                ui.label(format!("Meshes: {}", self.meshes.len()));
-                                // ui.label(format!(
-                                //     "CameraPos: ({} | {} | {})",
-                                //     self.camera.position.x,
-                                //     self.camera.position.y,
-                                //     self.camera.position.z
-                                // ));
-                                // ui.label(format!(
-                                //     "Delta-Time: {} fps",
-                                //     (1.0 / self.delta_time * 10.0).floor() / 10.0
-                                // ));
-                                ui.label(format!(
-                                    "Camera: {}",
-                                    if self.show_light_view {
-                                        "light"
-                                    } else {
-                                        "camera"
-                                    }
-                                ));
-                                // ui.separator();
-                                // ui.text_edit_singleline(&mut self.debug_text);
-                                // if ui.button("Print text").clicked() {
-                                //     println!("Text: {}", self.debug_text);
-                                // }
+        if let Some(ui_model) = &self.ui_model {
+            for window in &ui_model.windows {
+                egui::Area::new("panel".into())
+                    // TODO: Fix this line
+                    .anchor(
+                        window.relative_position.clone().into(),
+                        egui::vec2(window.offset.x, window.offset.y),
+                    )
+                    .show(&self.egui_ctx, |ui| {
+                        // Constrain the whole area
+                        ui.set_max_width(window.max_width);
+                        ui.set_max_height(window.max_height);
+                        egui::Frame::NONE
+                            .fill(egui::Color32::from_rgb(
+                                window.background_color.r,
+                                window.background_color.g,
+                                window.background_color.b,
+                            ))
+                            .corner_radius(window.corner_radius)
+                            .inner_margin(egui::Margin::same(window.inner_margin))
+                            .show(ui, |mut ui| {
+                                Self::ui_model_to_ui(&mut ui, &window.child);
                             });
-                        });
-                });
+                    });
+            }
         }
 
         // End egui frame
@@ -832,5 +839,13 @@ impl ButteryRenderer for SlipperyRenderer {
 
     fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel>) {
         self.ui_model = ui_model;
+    }
+}
+
+impl From<ButteryUIWindowRelativePosition> for Align2 {
+    fn from(value: ButteryUIWindowRelativePosition) -> Self {
+        match value {
+            ButteryUIWindowRelativePosition::Centered => Align2::CENTER_CENTER,
+        }
     }
 }

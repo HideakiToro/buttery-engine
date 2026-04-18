@@ -9,5 +9,4 @@ To build this project, this guide was used: https://github.com/gfx-rs/wgpu/wiki/
 Instancing has been skipped as it was not necessary so far.
 
 # TODOs before first game:
-1. ui broke since abstraction, so a new pipeline needs to be implemented
-2. ensure web-compatibility
+- ensure web-compatibility

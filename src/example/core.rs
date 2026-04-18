@@ -4,7 +4,7 @@ use crate::core::{
     engine::ButteryEngineState,
     game::ButteryGame,
     key_event::{Key, KeyEvent},
-    ui::ButteryUIModel,
+    ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindow},
 };
 use cgmath::{Deg, Point3, Rad};
 use std::f32::consts::PI;
@@ -53,7 +53,7 @@ impl ButteryGame for ButteryExample {
             }
             Key::E if key_event.pressed && !self.open_menu => {
                 self.open_menu = true;
-                state.renderer.update_ui_model(Some(ButteryUIModel {}));
+                state.renderer.update_ui_model(Some(build_ui_model()));
             }
             Key::R if key_event.pressed => {
                 self.camera.yaw -= Rad(PI * 0.5);
@@ -66,5 +66,18 @@ impl ButteryGame for ButteryExample {
                 self.camera_controller.handle_key_event(key_event);
             }
         }
+    }
+}
+
+fn build_ui_model() -> ButteryUIModel {
+    ButteryUIModel {
+        windows: vec![ButteryUIWindow {
+            max_width: 600.0,
+            max_height: 400.0,
+            corner_radius: 10.0,
+            inner_margin: 16,
+            child: ButteryUIElement::Column(vec![ButteryUIElement::Text("Hello World!".into())]),
+            ..Default::default()
+        }],
     }
 }

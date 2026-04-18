@@ -6,6 +6,5 @@ pub mod light;
 pub mod mesh;
 pub mod offset;
 pub mod renderer;
-pub mod renderer_impl;
 pub mod vertex;
 pub mod windowing;
