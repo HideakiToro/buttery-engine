@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,

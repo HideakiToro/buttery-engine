@@ -1,11 +1,2 @@
-pub mod app;
-pub mod binary_loader;
-pub mod camera;
-pub mod camera_controller;
-pub mod glb_parser;
-pub mod gltf_dto;
-pub mod light;
-pub mod mesh;
-pub mod offset;
-pub mod state;
-pub mod vertex;
+pub mod core;
+pub mod slippery_renderer;

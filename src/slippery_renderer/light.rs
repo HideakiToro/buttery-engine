@@ -1,4 +1,4 @@
-use crate::camera::{Camera, Projection};
+use super::camera::{Camera, Projection};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

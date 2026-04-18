@@ -3,7 +3,7 @@ use std::f32::consts::FRAC_PI_2;
 use cgmath::{InnerSpace, Rad, Vector3};
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta, keyboard::KeyCode};
 
-use crate::camera::Camera;
+use super::camera::Camera;
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 

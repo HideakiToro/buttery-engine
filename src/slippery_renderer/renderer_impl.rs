@@ -8,12 +8,25 @@ use wgpu::{
 };
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
 
-use crate::{
-    camera::{Camera, CameraUniform, Projection}, camera_controller::CameraController, glb_parser, light::{BiasUniform, LightUniform}, mesh::Mesh, offset::OffsetUniform, vertex::Vertex
+use super::{
+    camera::{
+        Camera,
+        CameraUniform,
+        Projection
+    },
+    camera_controller::CameraController,
+    light::{
+        BiasUniform,
+        LightUniform
+    },
+    mesh::Mesh,
+    offset::OffsetUniform,
+    vertex::Vertex,
+    glb_parser::parse_glb
 };
 
 // This will store the state of the game
-pub struct State {
+pub struct Renderer {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
@@ -24,7 +37,7 @@ pub struct State {
     msaa_texture: wgpu::TextureView,
     render_pipeline: wgpu::RenderPipeline,
 
-    meshes: Vec<Mesh>,
+    pub meshes: Vec<Mesh>,
     depth_format: wgpu::TextureFormat,
 
     last_frame_time: Instant,
@@ -54,9 +67,11 @@ pub struct State {
     open_menu: bool,
     show_light_view: bool,
     _debug_text: String,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+    offset_bind_group_layout: wgpu::BindGroupLayout,
 }
 
-impl State {
+impl Renderer {
     // We don't need this to be async right now,
     // but we will in the next tutorial
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
@@ -466,18 +481,6 @@ impl State {
             })
         };
 
-        let mut meshes = Vec::new();
-
-        let mut glb_meshes = glb_parser::parse_glb(
-            "./models/cube.glb",
-            &device,
-            &queue,
-            &texture_bind_group_layout,
-            &offset_bind_group_layout,
-        )
-        .await?;
-        meshes.append(&mut glb_meshes);
-
         let egui_ctx = egui::Context::default();
         let egui_state = egui_winit::State::new(
             egui_ctx.clone(),
@@ -507,7 +510,7 @@ impl State {
             msaa_texture,
             render_pipeline,
 
-            meshes,
+            meshes: Vec::new(),
             depth_format,
 
             last_frame_time: web_time::Instant::now(),
@@ -537,6 +540,9 @@ impl State {
             open_menu: false,
             show_light_view: false,
             _debug_text: "I am debug text".to_string(),
+
+            texture_bind_group_layout,
+            offset_bind_group_layout
         })
     }
 
@@ -878,5 +884,17 @@ impl State {
 
         self.last_frame_time = now;
         self.delta_time = delta;
+    }
+
+    pub async fn load_model(&mut self, path: &str) {
+        let mut glb_meshes = parse_glb(
+            path,
+            &self.device,
+            &self.queue,
+            &self.texture_bind_group_layout,
+            &self.offset_bind_group_layout,
+        )
+        .await.unwrap();
+        self.meshes.append(&mut glb_meshes);
     }
 }
