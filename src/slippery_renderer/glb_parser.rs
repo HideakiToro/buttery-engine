@@ -219,8 +219,7 @@ pub async fn parse_glb(
     for group in groups {
         for mesh in group.meshes {
             // Load Texture
-            let image_bytes = mesh
-                .image_bytes.ok_or_else(|| ParseError::MissigImages)?;
+            let image_bytes = mesh.image_bytes.ok_or_else(|| ParseError::MissigImages)?;
             let diffuse_image = image::load_from_memory(image_bytes)?;
             let diffuse_rgba = diffuse_image.to_rgba8();
             let dimensions = diffuse_image.dimensions();

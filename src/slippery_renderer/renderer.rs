@@ -1,3 +1,12 @@
+use super::{
+    camera::{CameraUniform, Projection},
+    glb_parser::parse_glb,
+    light::{BiasUniform, LightUniform},
+    mesh::Mesh,
+    offset::OffsetUniform,
+    vertex::Vertex,
+};
+use crate::core::{camera::Camera, object::Object, renderer::ButteryRenderer};
 use bytemuck::bytes_of;
 use cgmath::Deg;
 use std::sync::Arc;
@@ -5,26 +14,7 @@ use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
     util::DeviceExt,
 };
-use winit::{window::Window};
-
-use crate::core::{object::Object, renderer::ButteryRenderer};
-
-use super::{
-    camera::{
-        Camera,
-        CameraUniform,
-        Projection
-    },
-    camera_controller::CameraController,
-    light::{
-        BiasUniform,
-        LightUniform
-    },
-    mesh::Mesh,
-    offset::OffsetUniform,
-    vertex::Vertex,
-    glb_parser::parse_glb
-};
+use winit::window::Window;
 
 pub struct SlipperyRenderer {
     surface: wgpu::Surface<'static>,
@@ -42,8 +32,6 @@ pub struct SlipperyRenderer {
 
     delta_time: f32,
 
-    camera: Camera,
-    camera_controller: CameraController,
     projection: Projection,
 
     camera_uniform: CameraUniform,
@@ -163,7 +151,7 @@ impl SlipperyRenderer {
         let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
         let projection =
             Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
-        let camera_controller = CameraController::new(4.0, 0.4);
+        // let camera_controller = CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -227,11 +215,11 @@ impl SlipperyRenderer {
 
         #[cfg(not(target_arch = "wasm32"))]
         let bias_uniform = BiasUniform {
-            bias: [0.000001; 4]
+            bias: [0.000001; 4],
         };
         #[cfg(target_arch = "wasm32")]
         let bias_uniform = BiasUniform {
-            bias: [0.000002; 4]
+            bias: [0.000002; 4],
         };
 
         let bias_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -280,13 +268,13 @@ impl SlipperyRenderer {
             size: wgpu::Extent3d {
                 width: 8192,
                 height: 8192,
-                depth_or_array_layers: 1
+                depth_or_array_layers: 1,
             },
             #[cfg(target_arch = "wasm32")]
             size: wgpu::Extent3d {
                 width: 2048,
                 height: 2048,
-                depth_or_array_layers: 1
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -296,7 +284,7 @@ impl SlipperyRenderer {
             view_formats: &[],
         });
         let shadow_view = shadow_texture.create_view(&Default::default());
-        
+
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: Some(wgpu::CompareFunction::LessEqual),
             mag_filter: wgpu::FilterMode::Linear,
@@ -304,29 +292,30 @@ impl SlipperyRenderer {
             ..Default::default()
         });
 
-        let shadow_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("shadow_bind_group_layout"),
-            entries: &[
-                // depth texture
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Depth,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
+        let shadow_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("shadow_bind_group_layout"),
+                entries: &[
+                    // depth texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Depth,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                // sampler
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                    count: None,
-                },
-            ],
-        });
+                    // sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                        count: None,
+                    },
+                ],
+            });
 
         let shadow_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &shadow_bind_group_layout,
@@ -343,7 +332,6 @@ impl SlipperyRenderer {
             label: Some("shadow_bind_group"),
         });
 
-
         // More Bindgroup stuff here...
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
@@ -357,7 +345,7 @@ impl SlipperyRenderer {
                     &texture_bind_group_layout,
                     &camera_light_bind_group_layout,
                     &offset_bind_group_layout,
-                    &shadow_bind_group_layout
+                    &shadow_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -378,7 +366,6 @@ impl SlipperyRenderer {
                 view_formats: &[],
             })
             .create_view(&wgpu::TextureViewDescriptor::default());
-
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -421,7 +408,7 @@ impl SlipperyRenderer {
                 bias: wgpu::DepthBiasState::default(),
             }), // 1.
             multisample: wgpu::MultisampleState {
-                count: msaa_samples,                         // 2.
+                count: msaa_samples,              // 2.
                 mask: !0,                         // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
@@ -432,10 +419,7 @@ impl SlipperyRenderer {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[
-                    &camera_light_bind_group_layout,
-                    &offset_bind_group_layout
-                ],
+                bind_group_layouts: &[&camera_light_bind_group_layout, &offset_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = device.create_shader_module(wgpu::include_wgsl!("light.wgsl"));
@@ -512,8 +496,6 @@ impl SlipperyRenderer {
 
             delta_time: 1.0 / 60.0,
 
-            camera,
-            camera_controller,
             projection,
 
             camera_light_bind_group,
@@ -538,7 +520,7 @@ impl SlipperyRenderer {
             _debug_text: "I am debug text".to_string(),
 
             texture_bind_group_layout,
-            offset_bind_group_layout
+            offset_bind_group_layout,
         })
     }
 }
@@ -551,17 +533,18 @@ impl ButteryRenderer for SlipperyRenderer {
             &self.queue,
             &self.texture_bind_group_layout,
             &self.offset_bind_group_layout,
-        )).unwrap();
+        ))
+        .unwrap();
         self.meshes.append(&mut glb_meshes);
     }
 
     fn on_update(&mut self, _objects: &Vec<Object>, delta_time: f32) {
         self.delta_time = delta_time;
 
-        self.camera_controller
-            .update_camera(&mut self.camera, self.delta_time);
-        self.camera_uniform
-            .update_view_proj(&self.camera, &self.projection);
+        // self.camera_controller
+        //     .update_camera(&mut self.camera, self.delta_time);
+        // self.camera_uniform
+        //     .update_view_proj(&self.camera, &self.projection);
 
         let camera_uniform = if self.show_light_view {
             self.light_camera_uniform
@@ -577,7 +560,6 @@ impl ButteryRenderer for SlipperyRenderer {
     }
 
     fn render(&mut self) {
-
         let depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Depth Texture"),
             size: wgpu::Extent3d {
@@ -628,9 +610,9 @@ impl ButteryRenderer for SlipperyRenderer {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-        
+
             pass.set_pipeline(&self.light_render_pipeline);
-        
+
             for (index, mesh) in self.meshes.iter().enumerate() {
                 if index == 0 {
                     // Offset
@@ -725,12 +707,12 @@ impl ButteryRenderer for SlipperyRenderer {
                         .show(ui, |ui| {
                             ui.vertical_centered(|ui| {
                                 ui.label(format!("Meshes: {}", self.meshes.len()));
-                                ui.label(format!(
-                                    "CameraPos: ({} | {} | {})",
-                                    self.camera.position.x,
-                                    self.camera.position.y,
-                                    self.camera.position.z
-                                ));
+                                // ui.label(format!(
+                                //     "CameraPos: ({} | {} | {})",
+                                //     self.camera.position.x,
+                                //     self.camera.position.y,
+                                //     self.camera.position.z
+                                // ));
                                 ui.label(format!(
                                     "Delta-Time: {} fps",
                                     (1.0 / self.delta_time * 10.0).floor() / 10.0
@@ -825,18 +807,18 @@ impl ButteryRenderer for SlipperyRenderer {
             self.projection.resize(width, height);
 
             self.light_projection.resize(width, height);
-            self.light.update_view_proj(&self.light_camera, &self.light_projection);
-            self.light_camera_uniform.update_view_proj(&self.light_camera, &self.light_projection);
-            self.queue.write_buffer(
-                &self.light_buffer,
-                0,
-                bytemuck::cast_slice(&[self.light]),
-            );
+            self.light
+                .update_view_proj(&self.light_camera, &self.light_projection);
+            self.light_camera_uniform
+                .update_view_proj(&self.light_camera, &self.light_projection);
+            self.queue
+                .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
 
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
-            self.msaa_texture = self.device
+            self.msaa_texture = self
+                .device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("MSAA Texture"),
                     size: wgpu::Extent3d {

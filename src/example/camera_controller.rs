@@ -1,9 +1,11 @@
 use std::f32::consts::FRAC_PI_2;
 
 use cgmath::{InnerSpace, Rad, Vector3};
-use winit::{dpi::PhysicalPosition, event::MouseScrollDelta, keyboard::KeyCode};
 
-use super::camera::Camera;
+use crate::core::{
+    camera::Camera,
+    key_event::{Key, KeyEvent},
+};
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 
@@ -39,22 +41,22 @@ impl CameraController {
         }
     }
 
-    pub fn process_keyboard(&mut self, key: KeyCode, pressed: bool) -> bool {
-        let amount = if pressed { 1.0 } else { 0.0 };
-        match key {
-            KeyCode::KeyW => {
+    pub fn handle_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let amount = if key_event.pressed { 1.0 } else { 0.0 };
+        match key_event.key {
+            Key::W => {
                 self.amount_forward = amount;
                 true
             }
-            KeyCode::KeyS => {
+            Key::S => {
                 self.amount_backward = amount;
                 true
             }
-            KeyCode::KeyA => {
+            Key::A => {
                 self.amount_left = amount;
                 true
             }
-            KeyCode::KeyD => {
+            Key::D => {
                 self.amount_right = amount;
                 true
             }
@@ -62,20 +64,20 @@ impl CameraController {
         }
     }
 
-    // Currently unused
-    pub fn handle_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.rotate_horizontal = mouse_dx as f32;
-        self.rotate_vertical = mouse_dy as f32;
-    }
+    // // Currently unused
+    // pub fn handle_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
+    //     self.rotate_horizontal = mouse_dx as f32;
+    //     self.rotate_vertical = mouse_dy as f32;
+    // }
 
-    // Currently unused
-    pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
-        self.scroll = -match delta {
-            // I'm assuming a line is about 100 pixels
-            MouseScrollDelta::LineDelta(_, scroll) => scroll * 100.0,
-            MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => *scroll as f32,
-        };
-    }
+    // // Currently unused
+    // pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
+    //     self.scroll = -match delta {
+    //         // I'm assuming a line is about 100 pixels
+    //         MouseScrollDelta::LineDelta(_, scroll) => scroll * 100.0,
+    //         MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => *scroll as f32,
+    //     };
+    // }
 
     pub fn update_camera(&mut self, camera: &mut Camera, dt: f32) {
         // Move forward/backward and left/right

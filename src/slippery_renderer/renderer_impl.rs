@@ -1,3 +1,12 @@
+use super::{
+    camera::{CameraUniform, Projection},
+    glb_parser::parse_glb,
+    light::{BiasUniform, LightUniform},
+    mesh::Mesh,
+    offset::OffsetUniform,
+    vertex::Vertex,
+};
+use crate::core::camera::Camera;
 use bytemuck::bytes_of;
 use cgmath::{Deg, Point3, Rad};
 use std::{f32::consts::PI, sync::Arc};
@@ -7,23 +16,6 @@ use wgpu::{
     util::DeviceExt,
 };
 use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
-
-use super::{
-    camera::{
-        Camera,
-        CameraUniform,
-        Projection
-    },
-    camera_controller::CameraController,
-    light::{
-        BiasUniform,
-        LightUniform
-    },
-    mesh::Mesh,
-    offset::OffsetUniform,
-    vertex::Vertex,
-    glb_parser::parse_glb
-};
 
 // This will store the state of the game
 pub struct Renderer {
@@ -44,7 +36,6 @@ pub struct Renderer {
     delta_time: f32,
 
     camera: Camera,
-    camera_controller: CameraController,
     projection: Projection,
 
     camera_uniform: CameraUniform,
@@ -166,7 +157,6 @@ impl Renderer {
         let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
         let projection =
             Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
-        let camera_controller = CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -230,11 +220,11 @@ impl Renderer {
 
         #[cfg(not(target_arch = "wasm32"))]
         let bias_uniform = BiasUniform {
-            bias: [0.000001; 4]
+            bias: [0.000001; 4],
         };
         #[cfg(target_arch = "wasm32")]
         let bias_uniform = BiasUniform {
-            bias: [0.000002; 4]
+            bias: [0.000002; 4],
         };
 
         let bias_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -283,13 +273,13 @@ impl Renderer {
             size: wgpu::Extent3d {
                 width: 8192,
                 height: 8192,
-                depth_or_array_layers: 1
+                depth_or_array_layers: 1,
             },
             #[cfg(target_arch = "wasm32")]
             size: wgpu::Extent3d {
                 width: 2048,
                 height: 2048,
-                depth_or_array_layers: 1
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -299,7 +289,7 @@ impl Renderer {
             view_formats: &[],
         });
         let shadow_view = shadow_texture.create_view(&Default::default());
-        
+
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: Some(wgpu::CompareFunction::LessEqual),
             mag_filter: wgpu::FilterMode::Linear,
@@ -307,29 +297,30 @@ impl Renderer {
             ..Default::default()
         });
 
-        let shadow_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("shadow_bind_group_layout"),
-            entries: &[
-                // depth texture
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Depth,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
+        let shadow_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("shadow_bind_group_layout"),
+                entries: &[
+                    // depth texture
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Depth,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                // sampler
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                    count: None,
-                },
-            ],
-        });
+                    // sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                        count: None,
+                    },
+                ],
+            });
 
         let shadow_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &shadow_bind_group_layout,
@@ -346,7 +337,6 @@ impl Renderer {
             label: Some("shadow_bind_group"),
         });
 
-
         // More Bindgroup stuff here...
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
@@ -360,7 +350,7 @@ impl Renderer {
                     &texture_bind_group_layout,
                     &camera_light_bind_group_layout,
                     &offset_bind_group_layout,
-                    &shadow_bind_group_layout
+                    &shadow_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -381,7 +371,6 @@ impl Renderer {
                 view_formats: &[],
             })
             .create_view(&wgpu::TextureViewDescriptor::default());
-
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -424,7 +413,7 @@ impl Renderer {
                 bias: wgpu::DepthBiasState::default(),
             }), // 1.
             multisample: wgpu::MultisampleState {
-                count: msaa_samples,                         // 2.
+                count: msaa_samples,              // 2.
                 mask: !0,                         // 3.
                 alpha_to_coverage_enabled: false, // 4.
             },
@@ -435,10 +424,7 @@ impl Renderer {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[
-                    &camera_light_bind_group_layout,
-                    &offset_bind_group_layout
-                ],
+                bind_group_layouts: &[&camera_light_bind_group_layout, &offset_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = device.create_shader_module(wgpu::include_wgsl!("light.wgsl"));
@@ -517,7 +503,6 @@ impl Renderer {
             delta_time: 1.0 / 60.0,
 
             camera,
-            camera_controller,
             projection,
 
             camera_light_bind_group,
@@ -542,7 +527,7 @@ impl Renderer {
             _debug_text: "I am debug text".to_string(),
 
             texture_bind_group_layout,
-            offset_bind_group_layout
+            offset_bind_group_layout,
         })
     }
 
@@ -557,18 +542,18 @@ impl Renderer {
             self.projection.resize(width, height);
 
             self.light_projection.resize(width, height);
-            self.light.update_view_proj(&self.light_camera, &self.light_projection);
-            self.light_camera_uniform.update_view_proj(&self.light_camera, &self.light_projection);
-            self.queue.write_buffer(
-                &self.light_buffer,
-                0,
-                bytemuck::cast_slice(&[self.light]),
-            );
+            self.light
+                .update_view_proj(&self.light_camera, &self.light_projection);
+            self.light_camera_uniform
+                .update_view_proj(&self.light_camera, &self.light_projection);
+            self.queue
+                .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
 
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
-            self.msaa_texture = self.device
+            self.msaa_texture = self
+                .device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("MSAA Texture"),
                     size: wgpu::Extent3d {
@@ -639,9 +624,9 @@ impl Renderer {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-        
+
             pass.set_pipeline(&self.light_render_pipeline);
-        
+
             for (index, mesh) in self.meshes.iter().enumerate() {
                 if index == 0 {
                     // Offset
@@ -849,16 +834,11 @@ impl Renderer {
                 self.camera.yaw = Rad(-PI * 0.5);
                 self.camera.position = Point3::new(0.0, 4.0, 6.0);
             }
-            (code, is_pressed) if !self.open_menu && !self.show_light_view => {
-                self.camera_controller.process_keyboard(code, is_pressed);
-            }
             _ => {}
         }
     }
 
     pub fn update(&mut self) {
-        self.camera_controller
-            .update_camera(&mut self.camera, self.delta_time);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
 
@@ -894,7 +874,8 @@ impl Renderer {
             &self.texture_bind_group_layout,
             &self.offset_bind_group_layout,
         )
-        .await.unwrap();
+        .await
+        .unwrap();
         self.meshes.append(&mut glb_meshes);
     }
 }

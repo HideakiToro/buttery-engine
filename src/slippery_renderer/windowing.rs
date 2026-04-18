@@ -1,3 +1,10 @@
+use super::renderer::SlipperyRenderer;
+use crate::core::{
+    engine::ButteryEngine,
+    key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent},
+    renderer::ButteryRenderer,
+    windowing::ButteryWindowingSystem,
+};
 use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use winit::event_loop::EventLoop;
@@ -5,14 +12,11 @@ use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::PhysicalKey,
+    keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
-use crate::core::{engine::ButteryEngine, renderer::ButteryRenderer, windowing::ButteryWindowingSystem};
-use super::renderer::SlipperyRenderer;
 
-pub struct SlipperyRendererWindowing {
-}
+pub struct SlipperyRendererWindowing {}
 
 impl SlipperyRendererWindowing {
     pub fn new() -> Box<dyn ButteryWindowingSystem> {
@@ -23,7 +27,7 @@ impl SlipperyRendererWindowing {
 pub struct State {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<Box<dyn ButteryRenderer>>>,
-    pub engine: ButteryEngine
+    pub engine: ButteryEngine,
 }
 
 impl ButteryWindowingSystem for SlipperyRendererWindowing {
@@ -48,7 +52,7 @@ impl ButteryWindowingSystem for SlipperyRendererWindowing {
                 }
             };
         }
-    
+
         let event_loop = match EventLoop::with_user_event().build() {
             Ok(e) => e,
             Err(e) => {
@@ -88,7 +92,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
         }
 
-        window_attributes.title = "Buttery-Engine".to_string();
+        window_attributes.title = self.engine.game.get_title();
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
@@ -97,8 +101,12 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             // If we are not on web we can use pollster to
             // await the
 
-            use crate::{core::renderer::ButteryRenderer, slippery_renderer::renderer::SlipperyRenderer};
-            self.engine.renderer = Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap()) as Box<dyn ButteryRenderer>;
+            use crate::{
+                core::renderer::ButteryRenderer, slippery_renderer::renderer::SlipperyRenderer,
+            };
+            self.engine.state.renderer =
+                Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap())
+                    as Box<dyn ButteryRenderer>;
         }
 
         // TODO: Fix init to use new systems
@@ -135,7 +143,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
                 renderer.window.inner_size().height,
             );
         }
-        self.engine.renderer = Box::new(renderer) as Box<dyn ButteryRenderer>;
+        self.engine.state.renderer = Box::new(renderer) as Box<dyn ButteryRenderer>;
     }
 
     fn window_event(
@@ -160,13 +168,15 @@ impl ApplicationHandler<SlipperyRenderer> for State {
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => self.engine.renderer.resize(size.width, size.height),
+            WindowEvent::Resized(size) => {
+                self.engine.state.renderer.resize(size.width, size.height)
+            }
             WindowEvent::RedrawRequested => {
                 self.engine.calc_delta_time();
 
                 self.engine.on_update();
 
-                self.engine.renderer.render();
+                self.engine.state.renderer.render();
                 // match self.engine.renderer.render() {
                 //     Ok(_) => {}
                 //     // Reconfigure the surface if it's lost or outdated
@@ -183,18 +193,77 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
-                        physical_key: PhysicalKey::Code(_code),
-                        state: _key_state,
+                        physical_key: PhysicalKey::Code(code),
+                        state: key_state,
                         ..
                     },
                 ..
             } => {
-                // self.engine.on_keypress(event_loop, code, key_state.is_pressed())
-                self.engine.on_keypress()
-            },
+                self.engine.on_key_event(ButteryKeyEvent {
+                    key: code.into(),
+                    pressed: key_state.is_pressed(),
+                });
+            }
             _ => {}
         }
     }
 
     // ...
+}
+
+impl From<KeyCode> for ButteryKey {
+    fn from(value: KeyCode) -> Self {
+        match value {
+            KeyCode::ArrowUp => Self::ArrowUp,
+            KeyCode::ArrowDown => Self::ArrowDown,
+            KeyCode::ArrowLeft => Self::ArrowLeft,
+            KeyCode::ArrowRight => Self::ArrowRight,
+            KeyCode::KeyA => Self::A,
+            KeyCode::KeyB => Self::B,
+            KeyCode::KeyC => Self::C,
+            KeyCode::KeyD => Self::D,
+            KeyCode::KeyE => Self::E,
+            KeyCode::KeyF => Self::F,
+            KeyCode::KeyG => Self::G,
+            KeyCode::KeyH => Self::H,
+            KeyCode::KeyI => Self::I,
+            KeyCode::KeyJ => Self::J,
+            KeyCode::KeyK => Self::K,
+            KeyCode::KeyL => Self::L,
+            KeyCode::KeyM => Self::M,
+            KeyCode::KeyN => Self::N,
+            KeyCode::KeyO => Self::O,
+            KeyCode::KeyP => Self::P,
+            KeyCode::KeyQ => Self::Q,
+            KeyCode::KeyR => Self::R,
+            KeyCode::KeyS => Self::S,
+            KeyCode::KeyT => Self::T,
+            KeyCode::KeyU => Self::U,
+            KeyCode::KeyV => Self::V,
+            KeyCode::KeyW => Self::W,
+            KeyCode::KeyX => Self::X,
+            KeyCode::KeyY => Self::Y,
+            KeyCode::KeyZ => Self::Z,
+            KeyCode::Digit0 => Self::Key0,
+            KeyCode::Digit1 => Self::Key1,
+            KeyCode::Digit2 => Self::Key2,
+            KeyCode::Digit3 => Self::Key3,
+            KeyCode::Digit4 => Self::Key4,
+            KeyCode::Digit5 => Self::Key5,
+            KeyCode::Digit6 => Self::Key6,
+            KeyCode::Digit7 => Self::Key7,
+            KeyCode::Digit8 => Self::Key8,
+            KeyCode::Digit9 => Self::Key9,
+            KeyCode::ControlLeft => Self::LeftCtrl,
+            KeyCode::ControlRight => Self::RightCtrl,
+            KeyCode::ShiftLeft => Self::LeftShift,
+            KeyCode::ShiftRight => Self::RightShift,
+            KeyCode::Enter => Self::Enter,
+            KeyCode::Escape => Self::Escape,
+            key => {
+                println!("Unknown key {key:#?} event");
+                Self::None
+            }
+        }
+    }
 }

@@ -1,4 +1,7 @@
-pub mod renderer;
+pub mod camera;
 pub mod engine;
+pub mod game;
+pub mod key_event;
 pub mod object;
+pub mod renderer;
 pub mod windowing;

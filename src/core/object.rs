@@ -1,5 +1,5 @@
 pub struct Object {
-    _position: [f32; 3]
+    _position: [f32; 3],
 }
 
 impl Object {

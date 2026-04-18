@@ -1,4 +1,5 @@
-use super::camera::{Camera, Projection};
+use super::camera::Projection;
+use crate::core::camera::Camera;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -19,7 +20,7 @@ impl LightUniform {
             view_proj: cgmath::Matrix4::identity().into(),
             view_position: [0.0; 4],
             color: [1.0; 4],
-            direction: [1.0, 0.0, 0.0, 0.0]
+            direction: [1.0, 0.0, 0.0, 0.0],
         }
     }
 

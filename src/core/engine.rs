@@ -1,6 +1,12 @@
 use std::time::{Duration, Instant};
 
-use crate::core::{object::Object, renderer::{ButteryRenderer, FallbackRenderer}, windowing::ButteryWindowingSystem};
+use crate::core::{
+    game::ButteryGame,
+    key_event::KeyEvent,
+    object::Object,
+    renderer::{ButteryRenderer, FallbackRenderer},
+    windowing::ButteryWindowingSystem,
+};
 
 pub enum ButteryEvent {
     Init,
@@ -8,48 +14,60 @@ pub enum ButteryEvent {
     KeyPress(String),
 }
 
-pub struct ButteryEngine {
+pub struct ButteryEngineState {
     pub renderer: Box<dyn ButteryRenderer>,
+    // TODO: Replace with ButteryWorldModel Struct
     objects: Vec<Object>,
     last_frame_time: Instant,
-    delta_time: f32
+    delta_time: f32,
+}
+
+pub struct ButteryEngine {
+    pub state: ButteryEngineState,
+    pub game: Box<dyn ButteryGame>,
 }
 
 impl ButteryEngine {
-    pub fn start(windowing_system: Box<dyn ButteryWindowingSystem>) {
+    pub fn run(windowing_system: Box<dyn ButteryWindowingSystem>, game: Box<dyn ButteryGame>) {
         let engine = Self {
-            renderer: Box::new(FallbackRenderer {}),
-            objects: vec![],
-            delta_time: 1.0 / 60.0,
-            last_frame_time: web_time::Instant::now()
+            game,
+            state: ButteryEngineState {
+                renderer: Box::new(FallbackRenderer {}),
+                objects: vec![],
+                delta_time: 1.0 / 60.0,
+                last_frame_time: web_time::Instant::now(),
+            },
         };
 
         windowing_system.run(engine);
     }
 
     pub fn on_init(&mut self) {
-        self.renderer.load_model("./models/cube.glb");
+        self.game.on_init(&mut self.state);
     }
 
     pub fn on_update(&mut self) {
-        for object in self.objects.iter_mut() {
+        for object in self.state.objects.iter_mut() {
             object.update();
         }
 
-        self.renderer.on_update(&self.objects, self.delta_time);
+        self.state
+            .renderer
+            .on_update(&self.state.objects, self.state.delta_time);
     }
 
-    pub fn on_keypress(&mut self) {
+    pub fn on_key_event(&mut self, key_event: KeyEvent) {
+        self.game.on_key_event(&mut self.state, key_event);
     }
 
     pub fn calc_delta_time(&mut self) {
         let now = web_time::Instant::now();
         let delta = now
-            .checked_duration_since(self.last_frame_time)
+            .checked_duration_since(self.state.last_frame_time)
             .unwrap_or(Duration::from_millis(16))
             .as_secs_f32();
 
-        self.last_frame_time = now;
-        self.delta_time = delta;
+        self.state.last_frame_time = now;
+        self.state.delta_time = delta;
     }
 }
