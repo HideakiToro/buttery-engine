@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use web_time::Instant;
 
 use crate::core::{
     game::ButteryGame,
@@ -27,7 +28,10 @@ pub struct ButteryEngine {
 }
 
 impl ButteryEngine {
-    pub fn run(windowing_system: Box<dyn ButteryWindowingSystem>, game: Box<dyn ButteryGame>) {
+    pub fn run(
+        windowing_system: Box<dyn ButteryWindowingSystem>,
+        game: Box<dyn ButteryGame>,
+    ) -> anyhow::Result<()> {
         let engine = Self {
             game,
             state: ButteryEngineState {
@@ -38,7 +42,7 @@ impl ButteryEngine {
             },
         };
 
-        windowing_system.run(engine);
+        windowing_system.run(engine)
     }
 
     pub fn on_init(&mut self) {

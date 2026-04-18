@@ -15,7 +15,7 @@ use crate::core::{
 use bytemuck::bytes_of;
 use cgmath::Deg;
 use egui::{Align2, Ui};
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
     util::DeviceExt,
@@ -544,6 +544,14 @@ impl SlipperyRenderer {
 }
 
 impl ButteryRenderer for SlipperyRenderer {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn load_model(&mut self, path: &str) {
         let mut glb_meshes = pollster::block_on(parse_glb(
             path,
@@ -710,7 +718,6 @@ impl ButteryRenderer for SlipperyRenderer {
         if let Some(ui_model) = &self.ui_model {
             for window in &ui_model.windows {
                 egui::Area::new("panel".into())
-                    // TODO: Fix this line
                     .anchor(
                         window.relative_position.clone().into(),
                         egui::vec2(window.offset.x, window.offset.y),

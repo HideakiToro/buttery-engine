@@ -7,7 +7,7 @@ use crate::core::{
 };
 use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
-use winit::event_loop::EventLoop;
+use winit::event_loop::EventLoopProxy;
 use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
@@ -26,18 +26,12 @@ impl SlipperyRendererWindowing {
 
 pub struct State {
     #[cfg(target_arch = "wasm32")]
-    proxy: Option<winit::event_loop::EventLoopProxy<Box<dyn ButteryRenderer>>>,
+    proxy: Option<EventLoopProxy<SlipperyRenderer>>,
     pub engine: ButteryEngine,
 }
 
 impl ButteryWindowingSystem for SlipperyRendererWindowing {
-    fn run(&self, engine: ButteryEngine) {
-        let mut state = State {
-            engine,
-            #[cfg(target_arch = "wasm32")]
-            proxy: None,
-        };
-
+    fn run(&self, engine: ButteryEngine) -> anyhow::Result<()> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             env_logger::init();
@@ -57,19 +51,27 @@ impl ButteryWindowingSystem for SlipperyRendererWindowing {
             Ok(e) => e,
             Err(e) => {
                 println!("{e:#?}");
-                return;
+                return Ok(());
             }
         };
 
         #[cfg(target_arch = "wasm32")]
-        app.set_event_loop(&event_loop);
+        let proxy = Some(event_loop.create_proxy());
+        let mut state = State {
+            engine,
+            #[cfg(target_arch = "wasm32")]
+            proxy,
+        };
 
         match event_loop.run_app(&mut state) {
             Ok(_) => {}
             Err(e) => {
                 println!("{e:#?}");
+                return Ok(());
             }
         };
+
+        Ok(())
     }
 }
 
@@ -107,9 +109,9 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             self.engine.state.renderer =
                 Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap())
                     as Box<dyn ButteryRenderer>;
+            self.engine.on_init();
         }
 
-        // TODO: Fix init to use new systems
         #[cfg(target_arch = "wasm32")]
         {
             // Run the future asynchronously and use the
@@ -119,7 +121,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
                     assert!(
                         proxy
                             .send_event(
-                                State::new(window)
+                                SlipperyRenderer::new(window)
                                     .await
                                     .expect("Unable to create canvas!!!")
                             )
@@ -128,8 +130,6 @@ impl ApplicationHandler<SlipperyRenderer> for State {
                 });
             }
         }
-
-        self.engine.on_init();
     }
 
     #[allow(unused_mut)]
@@ -144,6 +144,8 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             );
         }
         self.engine.state.renderer = Box::new(renderer) as Box<dyn ButteryRenderer>;
+        #[cfg(target_arch = "wasm32")]
+        self.engine.on_init();
     }
 
     fn window_event(
@@ -161,10 +163,17 @@ impl ApplicationHandler<SlipperyRenderer> for State {
         //     None => return,
         // };
 
-        // TODO: replace with 'self.engine.renderer.ui_event()'
-        // let _ = self.engine.renderer
-        //     .egui_state
-        //     .on_window_event(state.window.as_ref(), &event);
+        if let Some(slippery_renderer) = self
+            .engine
+            .state
+            .renderer
+            .as_any_mut()
+            .downcast_mut::<SlipperyRenderer>()
+        {
+            let _ = slippery_renderer
+                .egui_state
+                .on_window_event(slippery_renderer.window.as_ref(), &event);
+        }
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
