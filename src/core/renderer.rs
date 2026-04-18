@@ -1,4 +1,4 @@
-use crate::core::world_model::ButteryWorldModel;
+use crate::core::{ui::ButteryUIModel, world_model::ButteryWorldModel};
 
 pub trait ButteryRenderer: Send + Sync {
     fn load_model(&mut self, path: &str);
@@ -8,6 +8,8 @@ pub trait ButteryRenderer: Send + Sync {
     fn render(&mut self);
 
     fn resize(&mut self, width: u32, height: u32);
+
+    fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel>);
 }
 
 pub struct FallbackRenderer {}
@@ -20,4 +22,6 @@ impl ButteryRenderer for FallbackRenderer {
     fn render(&mut self) {}
 
     fn resize(&mut self, _width: u32, _height: u32) {}
+
+    fn update_ui_model(&mut self, _ui_model: Option<ButteryUIModel>) {}
 }

@@ -4,6 +4,7 @@ use crate::core::{
     engine::ButteryEngineState,
     game::ButteryGame,
     key_event::{Key, KeyEvent},
+    ui::ButteryUIModel,
 };
 use cgmath::{Deg, Point3, Rad};
 use std::f32::consts::PI;
@@ -36,24 +37,23 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_update(&mut self, state: &mut ButteryEngineState) {
-        println!("On update...");
         self.camera_controller
             .update_camera(&mut self.camera, state.delta_time);
 
         state.world_model.camera = self.camera;
     }
 
-    fn on_key_event(&mut self, _state: &mut ButteryEngineState, key_event: KeyEvent) {
+    fn on_key_event(&mut self, state: &mut ButteryEngineState, key_event: KeyEvent) {
         match key_event.key {
             Key::Escape if key_event.pressed => {
                 if self.open_menu {
                     self.open_menu = false;
-                    // state.update_ui_model()
+                    state.renderer.update_ui_model(None);
                 }
             }
             Key::E if key_event.pressed && !self.open_menu => {
                 self.open_menu = true;
-                // state.update_ui_model()
+                state.renderer.update_ui_model(Some(ButteryUIModel {}));
             }
             Key::R if key_event.pressed => {
                 self.camera.yaw -= Rad(PI * 0.5);

@@ -4,5 +4,6 @@ pub mod game;
 pub mod key_event;
 pub mod object;
 pub mod renderer;
+pub mod ui;
 pub mod windowing;
 pub mod world_model;

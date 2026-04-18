@@ -6,7 +6,9 @@ use super::{
     offset::OffsetUniform,
     vertex::Vertex,
 };
-use crate::core::{camera::Camera, renderer::ButteryRenderer, world_model::ButteryWorldModel};
+use crate::core::{
+    camera::Camera, renderer::ButteryRenderer, ui::ButteryUIModel, world_model::ButteryWorldModel,
+};
 use bytemuck::bytes_of;
 use cgmath::Deg;
 use std::sync::Arc;
@@ -48,10 +50,9 @@ pub struct SlipperyRenderer {
     pub egui_ctx: egui::Context,
     pub egui_state: egui_winit::State,
     pub egui_renderer: egui_wgpu::Renderer,
+    ui_model: Option<ButteryUIModel>,
 
-    open_menu: bool,
     show_light_view: bool,
-    _debug_text: String,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     offset_bind_group_layout: wgpu::BindGroupLayout,
 }
@@ -510,10 +511,9 @@ impl SlipperyRenderer {
             egui_ctx,
             egui_state,
             egui_renderer,
+            ui_model: None,
 
-            open_menu: false,
             show_light_view: false,
-            _debug_text: "I am debug text".to_string(),
 
             texture_bind_group_layout,
             offset_bind_group_layout,
@@ -685,7 +685,7 @@ impl ButteryRenderer for SlipperyRenderer {
 
         self.egui_ctx.begin_pass(raw_input);
 
-        if self.open_menu {
+        if let Some(_ui_model) = &self.ui_model {
             egui::Area::new("central_panel".into())
                 .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
                 .show(&self.egui_ctx, |ui| {
@@ -828,5 +828,9 @@ impl ButteryRenderer for SlipperyRenderer {
                 .create_view(&wgpu::TextureViewDescriptor::default());
             self.is_surface_configured = true;
         }
+    }
+
+    fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel>) {
+        self.ui_model = ui_model;
     }
 }
