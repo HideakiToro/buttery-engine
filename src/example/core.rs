@@ -11,6 +11,7 @@ use std::f32::consts::PI;
 pub struct ButteryExample {
     camera: Camera,
     camera_controller: CameraController,
+    open_menu: bool,
 }
 
 impl ButteryExample {
@@ -20,6 +21,7 @@ impl ButteryExample {
         Self {
             camera,
             camera_controller: CameraController::new(4.0, 0.4),
+            open_menu: false,
         }
     }
 }
@@ -33,18 +35,26 @@ impl ButteryGame for ButteryExample {
         state.renderer.load_model("./models/cube.glb");
     }
 
+    fn on_update(&mut self, state: &mut ButteryEngineState) {
+        println!("On update...");
+        self.camera_controller
+            .update_camera(&mut self.camera, state.delta_time);
+
+        state.world_model.camera = self.camera;
+    }
+
     fn on_key_event(&mut self, _state: &mut ButteryEngineState, key_event: KeyEvent) {
         match key_event.key {
-            // Key::Escape => {
-            //     if state.renderer.open_menu {
-            //         self.open_menu = false;
-            //     } else {
-            //         event_loop.exit();
-            //     }
-            // }
-            // (KeyCode::KeyE, true) if !self.open_menu => {
-            //     self.open_menu = true;
-            // }
+            Key::Escape if key_event.pressed => {
+                if self.open_menu {
+                    self.open_menu = false;
+                    // state.update_ui_model()
+                }
+            }
+            Key::E if key_event.pressed && !self.open_menu => {
+                self.open_menu = true;
+                // state.update_ui_model()
+            }
             Key::R if key_event.pressed => {
                 self.camera.yaw -= Rad(PI * 0.5);
             }
@@ -55,7 +65,6 @@ impl ButteryGame for ButteryExample {
             _ => {
                 self.camera_controller.handle_key_event(key_event);
             }
-            _ => {}
         }
     }
 }

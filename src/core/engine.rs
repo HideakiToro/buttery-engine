@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 use crate::core::{
     game::ButteryGame,
     key_event::KeyEvent,
-    object::Object,
     renderer::{ButteryRenderer, FallbackRenderer},
     windowing::ButteryWindowingSystem,
+    world_model::ButteryWorldModel,
 };
 
 pub enum ButteryEvent {
@@ -16,10 +16,9 @@ pub enum ButteryEvent {
 
 pub struct ButteryEngineState {
     pub renderer: Box<dyn ButteryRenderer>,
-    // TODO: Replace with ButteryWorldModel Struct
-    objects: Vec<Object>,
     last_frame_time: Instant,
-    delta_time: f32,
+    pub delta_time: f32,
+    pub world_model: ButteryWorldModel,
 }
 
 pub struct ButteryEngine {
@@ -33,9 +32,9 @@ impl ButteryEngine {
             game,
             state: ButteryEngineState {
                 renderer: Box::new(FallbackRenderer {}),
-                objects: vec![],
                 delta_time: 1.0 / 60.0,
                 last_frame_time: web_time::Instant::now(),
+                world_model: ButteryWorldModel::default(),
             },
         };
 
@@ -47,13 +46,13 @@ impl ButteryEngine {
     }
 
     pub fn on_update(&mut self) {
-        for object in self.state.objects.iter_mut() {
+        for object in self.state.world_model.objects.iter_mut() {
             object.update();
         }
 
-        self.state
-            .renderer
-            .on_update(&self.state.objects, self.state.delta_time);
+        self.game.on_update(&mut self.state);
+
+        self.state.renderer.on_update(&self.state.world_model);
     }
 
     pub fn on_key_event(&mut self, key_event: KeyEvent) {

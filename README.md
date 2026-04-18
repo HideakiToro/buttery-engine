@@ -9,8 +9,5 @@ To build this project, this guide was used: https://github.com/gfx-rs/wgpu/wiki/
 Instancing has been skipped as it was not necessary so far.
 
 # TODOs before first game:
-0. key handling in game
-1. move camera from slippery into core
-2. ui broke since abstraction, so a new pipeline needs to be implemented
-3. ensure web-compatibility
-4. move example code into example project
+1. ui broke since abstraction, so a new pipeline needs to be implemented
+2. ensure web-compatibility

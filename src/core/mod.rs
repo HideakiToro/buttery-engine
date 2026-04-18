@@ -5,3 +5,4 @@ pub mod key_event;
 pub mod object;
 pub mod renderer;
 pub mod windowing;
+pub mod world_model;

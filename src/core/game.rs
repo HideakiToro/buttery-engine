@@ -5,5 +5,7 @@ pub trait ButteryGame {
 
     fn on_init(&mut self, state: &mut ButteryEngineState);
 
+    fn on_update(&mut self, state: &mut ButteryEngineState);
+
     fn on_key_event(&mut self, state: &mut ButteryEngineState, key_event: KeyEvent);
 }

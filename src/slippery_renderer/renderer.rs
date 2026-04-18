@@ -6,7 +6,7 @@ use super::{
     offset::OffsetUniform,
     vertex::Vertex,
 };
-use crate::core::{camera::Camera, object::Object, renderer::ButteryRenderer};
+use crate::core::{camera::Camera, renderer::ButteryRenderer, world_model::ButteryWorldModel};
 use bytemuck::bytes_of;
 use cgmath::Deg;
 use std::sync::Arc;
@@ -29,8 +29,6 @@ pub struct SlipperyRenderer {
 
     pub meshes: Vec<Mesh>,
     depth_format: wgpu::TextureFormat,
-
-    delta_time: f32,
 
     projection: Projection,
 
@@ -494,8 +492,6 @@ impl SlipperyRenderer {
             meshes: Vec::new(),
             depth_format,
 
-            delta_time: 1.0 / 60.0,
-
             projection,
 
             camera_light_bind_group,
@@ -538,13 +534,9 @@ impl ButteryRenderer for SlipperyRenderer {
         self.meshes.append(&mut glb_meshes);
     }
 
-    fn on_update(&mut self, _objects: &Vec<Object>, delta_time: f32) {
-        self.delta_time = delta_time;
-
-        // self.camera_controller
-        //     .update_camera(&mut self.camera, self.delta_time);
-        // self.camera_uniform
-        //     .update_view_proj(&self.camera, &self.projection);
+    fn on_update(&mut self, world_model: &ButteryWorldModel) {
+        self.camera_uniform
+            .update_view_proj(&world_model.camera, &self.projection);
 
         let camera_uniform = if self.show_light_view {
             self.light_camera_uniform
@@ -713,10 +705,10 @@ impl ButteryRenderer for SlipperyRenderer {
                                 //     self.camera.position.y,
                                 //     self.camera.position.z
                                 // ));
-                                ui.label(format!(
-                                    "Delta-Time: {} fps",
-                                    (1.0 / self.delta_time * 10.0).floor() / 10.0
-                                ));
+                                // ui.label(format!(
+                                //     "Delta-Time: {} fps",
+                                //     (1.0 / self.delta_time * 10.0).floor() / 10.0
+                                // ));
                                 ui.label(format!(
                                     "Camera: {}",
                                     if self.show_light_view {
