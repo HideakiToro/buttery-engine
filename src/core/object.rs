@@ -1,5 +1,6 @@
 pub struct Object {
-    _position: [f32; 3],
+    pub position: [f32; 3],
+    pub model_path: String,
 }
 
 impl Object {

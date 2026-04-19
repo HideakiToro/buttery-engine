@@ -8,8 +8,5 @@ To build this project, this guide was used: https://github.com/gfx-rs/wgpu/wiki/
 
 Instancing has been skipped as it was not necessary so far.
 
-# TODOs before first game:
-- objects must map to 3D Models and vice-versa
-
 # TODOs for the future:
 - ensure web-compatibility (breaks as soon as on_init is called)

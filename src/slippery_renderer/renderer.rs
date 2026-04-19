@@ -15,7 +15,7 @@ use crate::core::{
 use bytemuck::bytes_of;
 use cgmath::Deg;
 use egui::{Align2, Ui};
-use std::{any::Any, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
     util::DeviceExt,
@@ -33,7 +33,8 @@ pub struct SlipperyRenderer {
     msaa_texture: wgpu::TextureView,
     render_pipeline: wgpu::RenderPipeline,
 
-    pub meshes: Vec<Mesh>,
+    pub meshes: Vec<Arc<Mesh>>,
+    pub mesh_cache: HashMap<String, Vec<Arc<Mesh>>>,
     depth_format: wgpu::TextureFormat,
 
     projection: Projection,
@@ -495,6 +496,7 @@ impl SlipperyRenderer {
             render_pipeline,
 
             meshes: Vec::new(),
+            mesh_cache: HashMap::new(),
             depth_format,
 
             projection,
@@ -553,7 +555,7 @@ impl ButteryRenderer for SlipperyRenderer {
     }
 
     fn load_model(&mut self, path: &str) {
-        let mut glb_meshes = pollster::block_on(parse_glb(
+        let glb_meshes = pollster::block_on(parse_glb(
             path,
             &self.device,
             &self.queue,
@@ -561,7 +563,10 @@ impl ButteryRenderer for SlipperyRenderer {
             &self.offset_bind_group_layout,
         ))
         .unwrap();
-        self.meshes.append(&mut glb_meshes);
+        self.mesh_cache.insert(
+            path.into(),
+            glb_meshes.into_iter().map(|mesh| Arc::new(mesh)).collect(),
+        );
     }
 
     fn on_update(&mut self, world_model: &ButteryWorldModel) {
@@ -579,6 +584,35 @@ impl ButteryRenderer for SlipperyRenderer {
             0,
             bytemuck::cast_slice(&[camera_uniform]),
         );
+
+        self.meshes.clear();
+
+        for object in &world_model.objects {
+            let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
+                meshes
+            } else {
+                self.load_model(&object.model_path);
+                let Some(meshes) = self.mesh_cache.get(&object.model_path) else {
+                    panic!("Missing mesh {}", object.model_path);
+                };
+                meshes
+            };
+
+            for mesh in meshes {
+                // Offset
+                let offset = [
+                    object.position[0],
+                    object.position[1],
+                    object.position[2],
+                    0.0,
+                ];
+                let uniform = OffsetUniform { offset };
+                self.queue
+                    .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
+
+                self.meshes.push(mesh.clone());
+            }
+        }
     }
 
     fn render(&mut self) {
@@ -617,6 +651,7 @@ impl ButteryRenderer for SlipperyRenderer {
                 label: Some("Render Encoder"),
             });
 
+        // Shadow Render Pass
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shadow Pass"),
@@ -635,15 +670,7 @@ impl ButteryRenderer for SlipperyRenderer {
 
             pass.set_pipeline(&self.light_render_pipeline);
 
-            for (index, mesh) in self.meshes.iter().enumerate() {
-                if index == 0 {
-                    // Offset
-                    let offset = [0.0, 0.0, -1.0, 0.0];
-                    let uniform = OffsetUniform { offset };
-                    self.queue
-                        .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
-                }
-
+            for mesh in &self.meshes {
                 pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
                 pass.set_bind_group(1, &mesh.offset_bind_group, &[]);
                 pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
@@ -652,6 +679,7 @@ impl ButteryRenderer for SlipperyRenderer {
             }
         }
 
+        // Main Render Pass
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -684,15 +712,7 @@ impl ButteryRenderer for SlipperyRenderer {
             render_pass.set_pipeline(&self.render_pipeline);
 
             // Cloning Meshes here would literally clone every model on each frame...
-            for (index, mesh) in self.meshes.iter().enumerate() {
-                if index == 0 {
-                    // Offset
-                    let offset = [0.0, 0.0, -1.0, 0.0];
-                    let uniform = OffsetUniform { offset };
-                    self.queue
-                        .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
-                }
-
+            for mesh in &self.meshes {
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_light_bind_group, &[]);
                 render_pass.set_bind_group(2, &mesh.offset_bind_group, &[]);

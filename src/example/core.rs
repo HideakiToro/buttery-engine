@@ -4,6 +4,7 @@ use crate::core::{
     engine::ButteryEngineState,
     game::ButteryGame,
     key_event::{Key, KeyEvent},
+    object::Object,
     ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindow},
 };
 use cgmath::{Deg, Point3, Rad};
@@ -33,7 +34,11 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_init(&mut self, state: &mut ButteryEngineState) {
-        state.renderer.load_model("./models/cube.glb");
+        // state.renderer.load_model("./models/cube.glb");
+        state.world_model.objects.push(Object {
+            position: [0.0, 0.0, 0.0],
+            model_path: "./models/cube.glb".into(),
+        });
     }
 
     fn on_update(&mut self, state: &mut ButteryEngineState) {
