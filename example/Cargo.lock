@@ -235,6 +235,8 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 [[package]]
 name = "buttery-engine"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c6919b51a23fb4461c858e8c3ed20cc39fc4fc8637a5a1da5c0d851ebd7b0a9"
 dependencies = [
  "anyhow",
  "cgmath",

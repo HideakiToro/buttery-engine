@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = { version = "1.0.100" }
-buttery-engine = { path = "../core" }
+buttery-engine = { version = "0.1.0" }
 cgmath = { version = "0.18.0" }
 console_error_panic_hook = "0.1.7"
 slippery-renderer = { path = "../slippery-renderer" }
