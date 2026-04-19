@@ -1,5 +1,5 @@
 use super::renderer::SlipperyRenderer;
-use crate::core::{
+use buttery_engine::{
     engine::ButteryEngine,
     key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent},
     renderer::ButteryRenderer,
@@ -101,11 +101,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // If we are not on web we can use pollster to
-            // await the
-
-            use crate::{
-                core::renderer::ButteryRenderer, slippery_renderer::renderer::SlipperyRenderer,
-            };
+            // await the initialization of the renderer
             self.engine.state.renderer =
                 Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap())
                     as Box<dyn ButteryRenderer>;
@@ -202,14 +198,14 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
-                        physical_key: PhysicalKey::Code(code),
+                        physical_key: PhysicalKey::Code(key_code),
                         state: key_state,
                         ..
                     },
                 ..
             } => {
                 self.engine.on_key_event(ButteryKeyEvent {
-                    key: code.into(),
+                    key: key_code_to_buttery_key(key_code),
                     pressed: key_state.is_pressed(),
                 });
             }
@@ -220,59 +216,57 @@ impl ApplicationHandler<SlipperyRenderer> for State {
     // ...
 }
 
-impl From<KeyCode> for ButteryKey {
-    fn from(value: KeyCode) -> Self {
-        match value {
-            KeyCode::ArrowUp => Self::ArrowUp,
-            KeyCode::ArrowDown => Self::ArrowDown,
-            KeyCode::ArrowLeft => Self::ArrowLeft,
-            KeyCode::ArrowRight => Self::ArrowRight,
-            KeyCode::KeyA => Self::A,
-            KeyCode::KeyB => Self::B,
-            KeyCode::KeyC => Self::C,
-            KeyCode::KeyD => Self::D,
-            KeyCode::KeyE => Self::E,
-            KeyCode::KeyF => Self::F,
-            KeyCode::KeyG => Self::G,
-            KeyCode::KeyH => Self::H,
-            KeyCode::KeyI => Self::I,
-            KeyCode::KeyJ => Self::J,
-            KeyCode::KeyK => Self::K,
-            KeyCode::KeyL => Self::L,
-            KeyCode::KeyM => Self::M,
-            KeyCode::KeyN => Self::N,
-            KeyCode::KeyO => Self::O,
-            KeyCode::KeyP => Self::P,
-            KeyCode::KeyQ => Self::Q,
-            KeyCode::KeyR => Self::R,
-            KeyCode::KeyS => Self::S,
-            KeyCode::KeyT => Self::T,
-            KeyCode::KeyU => Self::U,
-            KeyCode::KeyV => Self::V,
-            KeyCode::KeyW => Self::W,
-            KeyCode::KeyX => Self::X,
-            KeyCode::KeyY => Self::Y,
-            KeyCode::KeyZ => Self::Z,
-            KeyCode::Digit0 => Self::Key0,
-            KeyCode::Digit1 => Self::Key1,
-            KeyCode::Digit2 => Self::Key2,
-            KeyCode::Digit3 => Self::Key3,
-            KeyCode::Digit4 => Self::Key4,
-            KeyCode::Digit5 => Self::Key5,
-            KeyCode::Digit6 => Self::Key6,
-            KeyCode::Digit7 => Self::Key7,
-            KeyCode::Digit8 => Self::Key8,
-            KeyCode::Digit9 => Self::Key9,
-            KeyCode::ControlLeft => Self::LeftCtrl,
-            KeyCode::ControlRight => Self::RightCtrl,
-            KeyCode::ShiftLeft => Self::LeftShift,
-            KeyCode::ShiftRight => Self::RightShift,
-            KeyCode::Enter => Self::Enter,
-            KeyCode::Escape => Self::Escape,
-            key => {
-                println!("Unknown key {key:#?} event");
-                Self::None
-            }
+fn key_code_to_buttery_key(value: KeyCode) -> ButteryKey {
+    match value {
+        KeyCode::ArrowUp => ButteryKey::ArrowUp,
+        KeyCode::ArrowDown => ButteryKey::ArrowDown,
+        KeyCode::ArrowLeft => ButteryKey::ArrowLeft,
+        KeyCode::ArrowRight => ButteryKey::ArrowRight,
+        KeyCode::KeyA => ButteryKey::A,
+        KeyCode::KeyB => ButteryKey::B,
+        KeyCode::KeyC => ButteryKey::C,
+        KeyCode::KeyD => ButteryKey::D,
+        KeyCode::KeyE => ButteryKey::E,
+        KeyCode::KeyF => ButteryKey::F,
+        KeyCode::KeyG => ButteryKey::G,
+        KeyCode::KeyH => ButteryKey::H,
+        KeyCode::KeyI => ButteryKey::I,
+        KeyCode::KeyJ => ButteryKey::J,
+        KeyCode::KeyK => ButteryKey::K,
+        KeyCode::KeyL => ButteryKey::L,
+        KeyCode::KeyM => ButteryKey::M,
+        KeyCode::KeyN => ButteryKey::N,
+        KeyCode::KeyO => ButteryKey::O,
+        KeyCode::KeyP => ButteryKey::P,
+        KeyCode::KeyQ => ButteryKey::Q,
+        KeyCode::KeyR => ButteryKey::R,
+        KeyCode::KeyS => ButteryKey::S,
+        KeyCode::KeyT => ButteryKey::T,
+        KeyCode::KeyU => ButteryKey::U,
+        KeyCode::KeyV => ButteryKey::V,
+        KeyCode::KeyW => ButteryKey::W,
+        KeyCode::KeyX => ButteryKey::X,
+        KeyCode::KeyY => ButteryKey::Y,
+        KeyCode::KeyZ => ButteryKey::Z,
+        KeyCode::Digit0 => ButteryKey::Key0,
+        KeyCode::Digit1 => ButteryKey::Key1,
+        KeyCode::Digit2 => ButteryKey::Key2,
+        KeyCode::Digit3 => ButteryKey::Key3,
+        KeyCode::Digit4 => ButteryKey::Key4,
+        KeyCode::Digit5 => ButteryKey::Key5,
+        KeyCode::Digit6 => ButteryKey::Key6,
+        KeyCode::Digit7 => ButteryKey::Key7,
+        KeyCode::Digit8 => ButteryKey::Key8,
+        KeyCode::Digit9 => ButteryKey::Key9,
+        KeyCode::ControlLeft => ButteryKey::LeftCtrl,
+        KeyCode::ControlRight => ButteryKey::RightCtrl,
+        KeyCode::ShiftLeft => ButteryKey::LeftShift,
+        KeyCode::ShiftRight => ButteryKey::RightShift,
+        KeyCode::Enter => ButteryKey::Enter,
+        KeyCode::Escape => ButteryKey::Escape,
+        key => {
+            println!("Unknown key {key:#?} event");
+            ButteryKey::None
         }
     }
 }

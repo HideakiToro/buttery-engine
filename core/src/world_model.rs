@@ -1,6 +1,6 @@
 use cgmath::Deg;
 
-use crate::core::{camera::Camera, object::Object};
+use crate::{camera::Camera, object::Object};
 
 pub struct ButteryWorldModel {
     pub camera: Camera,

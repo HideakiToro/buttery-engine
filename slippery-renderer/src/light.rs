@@ -1,5 +1,5 @@
 use super::camera::Projection;
-use crate::core::camera::Camera;
+use buttery_engine::camera::Camera;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

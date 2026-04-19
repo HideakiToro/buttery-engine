@@ -2,7 +2,7 @@ use std::f32::consts::FRAC_PI_2;
 
 use cgmath::{InnerSpace, Rad, Vector3};
 
-use crate::core::{
+use buttery_engine::{
     camera::Camera,
     key_event::{Key, KeyEvent},
 };

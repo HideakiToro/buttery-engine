@@ -1,6 +1,6 @@
 use cgmath::{Matrix4, Rad, perspective};
 
-use crate::core::camera::Camera;
+use buttery_engine::camera::Camera;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(

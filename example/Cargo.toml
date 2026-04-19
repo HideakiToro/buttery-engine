@@ -1,0 +1,12 @@
+[package]
+name = "buttery-engine-example"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { version = "1.0.100" }
+buttery-engine = { path = "../core" }
+cgmath = { version = "0.18.0" }
+console_error_panic_hook = "0.1.7"
+slippery-renderer = { path = "../slippery-renderer" }
+wasm-bindgen = "0.2.114"

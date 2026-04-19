@@ -1,5 +1,5 @@
 use super::camera_controller::CameraController;
-use crate::core::{
+use buttery_engine::{
     camera::Camera,
     engine::ButteryEngineState,
     game::ButteryGame,

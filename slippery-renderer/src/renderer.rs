@@ -6,7 +6,7 @@ use super::{
     offset::OffsetUniform,
     vertex::Vertex,
 };
-use crate::core::{
+use buttery_engine::{
     camera::Camera,
     renderer::ButteryRenderer,
     ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
@@ -338,7 +338,7 @@ impl SlipperyRenderer {
 
         // More Bindgroup stuff here...
 
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader/shader.wgsl"));
 
         let depth_format = wgpu::TextureFormat::Depth24Plus;
 
@@ -426,7 +426,7 @@ impl SlipperyRenderer {
                 bind_group_layouts: &[&camera_light_bind_group_layout, &offset_bind_group_layout],
                 push_constant_ranges: &[],
             });
-            let shader = device.create_shader_module(wgpu::include_wgsl!("light.wgsl"));
+            let shader = device.create_shader_module(wgpu::include_wgsl!("shader/light.wgsl"));
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
                 layout: Some(&layout),
@@ -739,7 +739,9 @@ impl ButteryRenderer for SlipperyRenderer {
             for window in &ui_model.windows {
                 egui::Area::new("panel".into())
                     .anchor(
-                        window.relative_position.clone().into(),
+                        buttery_ui_window_relative_position_to_align_2(
+                            window.relative_position.clone(),
+                        ),
                         egui::vec2(window.offset.x, window.offset.y),
                     )
                     .show(&self.egui_ctx, |ui| {
@@ -869,10 +871,10 @@ impl ButteryRenderer for SlipperyRenderer {
     }
 }
 
-impl From<ButteryUIWindowRelativePosition> for Align2 {
-    fn from(value: ButteryUIWindowRelativePosition) -> Self {
-        match value {
-            ButteryUIWindowRelativePosition::Centered => Align2::CENTER_CENTER,
-        }
+fn buttery_ui_window_relative_position_to_align_2(
+    value: ButteryUIWindowRelativePosition,
+) -> Align2 {
+    match value {
+        ButteryUIWindowRelativePosition::Centered => Align2::CENTER_CENTER,
     }
 }

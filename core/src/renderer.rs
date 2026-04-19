@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::core::{ui::ButteryUIModel, world_model::ButteryWorldModel};
+use crate::{ui::ButteryUIModel, world_model::ButteryWorldModel};
 
 pub trait ButteryRenderer: Send + Sync + Any {
     fn load_model(&mut self, path: &str);

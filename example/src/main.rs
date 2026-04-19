@@ -1,7 +1,6 @@
-use buttery_engine::{
-    core::engine::ButteryEngine, example::core::ButteryExample,
-    slippery_renderer::windowing::SlipperyRendererWindowing,
-};
+use buttery_engine::engine::ButteryEngine;
+use buttery_engine_example::core::ButteryExample;
+use slippery_renderer::windowing::SlipperyRendererWindowing;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -15,5 +14,9 @@ fn main() -> anyhow::Result<()> {
 pub fn run_web() -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     let game = Box::new(ButteryExample::new());
-    ButteryEngine::run(SlipperyRendererWindowing::new(), game)
+    if let Err(e) = ButteryEngine::run(SlipperyRendererWindowing::new(), game) {
+        println!("{e:#?}");
+    }
+
+    Ok(())
 }

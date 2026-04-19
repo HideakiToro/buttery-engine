@@ -1,7 +1,7 @@
 use std::time::Duration;
 use web_time::Instant;
 
-use crate::core::{
+use crate::{
     game::ButteryGame,
     key_event::KeyEvent,
     renderer::{ButteryRenderer, FallbackRenderer},

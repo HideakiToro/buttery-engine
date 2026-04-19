@@ -1,4 +1,4 @@
-use crate::core::{engine::ButteryEngineState, key_event::KeyEvent};
+use crate::{engine::ButteryEngineState, key_event::KeyEvent};
 
 pub trait ButteryGame {
     fn get_title(&self) -> String;
