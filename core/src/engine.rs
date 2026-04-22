@@ -1,9 +1,10 @@
-use std::time::Duration;
+use std::{sync::mpsc::channel, time::Duration};
 use web_time::Instant;
 
 use crate::{
     game::ButteryGame,
     key_event::KeyEvent,
+    object::Object,
     renderer::{ButteryRenderer, FallbackRenderer},
     windowing::ButteryWindowingSystem,
     world_model::ButteryWorldModel,
@@ -51,7 +52,7 @@ impl ButteryEngine {
 
     pub fn on_update(&mut self) {
         for object in self.state.world_model.objects.iter_mut() {
-            object.update();
+            object.on_update();
         }
 
         self.game.on_update(&mut self.state);

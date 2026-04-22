@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod component;
 pub mod engine;
 pub mod game;
 pub mod key_event;
