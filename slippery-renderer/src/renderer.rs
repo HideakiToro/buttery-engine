@@ -587,7 +587,7 @@ impl ButteryRenderer for SlipperyRenderer {
 
         self.meshes.clear();
 
-        for object in &world_model.objects {
+        for (_, object) in &world_model.objects {
             let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
                 meshes
             } else {
@@ -601,9 +601,9 @@ impl ButteryRenderer for SlipperyRenderer {
             for mesh in meshes {
                 // Offset
                 let offset = [
-                    object.position[0],
-                    object.position[1],
-                    object.position[2],
+                    object.data.position[0],
+                    object.data.position[1],
+                    object.data.position[2],
                     0.0,
                 ];
                 let uniform = OffsetUniform { offset };
