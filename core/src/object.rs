@@ -1,20 +1,36 @@
-use crate::component::ButteryComponent;
+use uuid::Uuid;
+
+use crate::{component::ButteryComponent, registry::Registry};
+
+pub struct ObjectData {
+    pub position: [f32; 3],
+    id: Uuid,
+}
+
+impl ObjectData {
+    pub fn get_id(&self) -> String {
+        self.id.to_string()
+    }
+}
 
 pub struct Object {
-    pub position: [f32; 3],
+    pub data: ObjectData,
     pub model_path: String,
     pub components: Vec<Box<dyn ButteryComponent>>,
 }
 
 impl Object {
-    pub fn default() -> Self {
+    pub fn default(world_diff: &mut Registry<Object>) -> Self {
         let mut object = Object {
-            position: [0.0, 0.0, 0.0],
+            data: ObjectData {
+                position: [0.0, 0.0, 0.0],
+                id: Uuid::new_v4(),
+            },
             model_path: "".into(),
             components: Vec::new(),
         };
 
-        object.on_init();
+        object.on_init(world_diff);
 
         object
     }
@@ -23,27 +39,35 @@ impl Object {
         position: [f32; 3],
         model_path: String,
         components: Vec<Box<dyn ButteryComponent>>,
+        world_diff: &mut Registry<Object>,
     ) -> Self {
         let mut object = Object {
-            position,
+            data: ObjectData {
+                position,
+                id: Uuid::new_v4(),
+            },
             model_path,
             components,
         };
 
-        object.on_init();
+        object.on_init(world_diff);
 
         object
     }
 
-    fn on_init(&mut self) {
+    fn on_init(&mut self, world_diff: &mut Registry<Object>) {
         for component in self.components.iter_mut() {
-            component.on_init();
+            component.on_init(world_diff, &mut self.data);
         }
     }
 
-    pub fn on_update(&mut self) {
+    pub fn on_update(&mut self, world_diff: &mut Registry<Object>, delta_time: f32) {
         for component in self.components.iter_mut() {
-            component.on_update();
+            component.on_update(world_diff, &mut self.data, delta_time);
         }
+    }
+
+    pub fn get_id(&self) -> String {
+        self.data.get_id()
     }
 }
