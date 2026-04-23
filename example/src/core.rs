@@ -1,6 +1,9 @@
+use crate::component::ExampleComponent;
+
 use super::camera_controller::CameraController;
 use buttery_engine::{
     camera::Camera,
+    component::ButteryComponent,
     engine::ButteryEngineState,
     game::ButteryGame,
     key_event::{Key, KeyEvent},
@@ -34,11 +37,14 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_init(&mut self, state: &mut ButteryEngineState) {
-        // state.renderer.load_model("./models/cube.glb");
-        state.world_model.objects.push(Object {
-            position: [0.0, 0.0, 0.0],
-            model_path: "./models/cube.glb".into(),
-        });
+        let components: Vec<Box<dyn ButteryComponent>> = vec![Box::new(ExampleComponent {})];
+        let object = Object::new(
+            [0.0, 0.0, 0.0],
+            "./models/cube.glb".into(),
+            components,
+            &mut state.world_diff,
+        );
+        state.world_model.objects.insert(object.get_id(), object);
     }
 
     fn on_update(&mut self, state: &mut ButteryEngineState) {
