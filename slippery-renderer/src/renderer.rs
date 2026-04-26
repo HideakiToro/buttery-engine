@@ -219,7 +219,7 @@ impl SlipperyRenderer {
         #[cfg(not(target_arch = "wasm32"))]
         let bias_uniform = BiasUniform { bias: [0.00001; 4] };
         #[cfg(target_arch = "wasm32")]
-        let bias_uniform = BiasUniform { bias: [0.00001; 4] };
+        let bias_uniform = BiasUniform { bias: [0.0001; 4] };
 
         let bias_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Bias Buffer"),
@@ -552,14 +552,14 @@ impl ButteryRenderer for SlipperyRenderer {
         self
     }
 
-    fn load_model(&mut self, path: &str) {
-        let glb_meshes = pollster::block_on(parse_glb(
-            path,
+    fn load_model(&mut self, buffer: &'static [u8], path: &str) {
+        let glb_meshes = parse_glb(
+            buffer,
             &self.device,
             &self.queue,
             &self.texture_bind_group_layout,
             &self.transform_bind_group_layout,
-        ))
+        )
         .unwrap();
         self.mesh_cache.insert(
             path.into(),
@@ -603,10 +603,14 @@ impl ButteryRenderer for SlipperyRenderer {
             self.meshes.clear();
 
             for (_, object) in &world_model.objects {
+                let Some(model_buffer) = object.model_buffer else {
+                    continue;
+                };
+
                 let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
                     meshes
                 } else {
-                    self.load_model(&object.model_path);
+                    self.load_model(model_buffer, &object.model_path);
                     let Some(meshes) = self.mesh_cache.get(&object.model_path) else {
                         panic!("Missing mesh {}", object.model_path);
                     };

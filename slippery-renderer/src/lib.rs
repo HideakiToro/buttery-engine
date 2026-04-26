@@ -1,4 +1,3 @@
-pub mod binary_loader;
 pub mod camera;
 pub mod glb_parser;
 pub mod gltf_dto;

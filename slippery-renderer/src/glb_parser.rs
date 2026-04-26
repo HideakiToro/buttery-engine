@@ -1,5 +1,5 @@
 use super::{
-    binary_loader::load_binary,
+    // binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
     offset::ModelTransform,
@@ -31,14 +31,14 @@ pub enum ParseError {
     MissigImages,
 }
 
-pub async fn parse_glb(
-    path: &str,
+pub fn parse_glb(
+    buffer: &'static [u8],
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
     offset_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Vec<Mesh>> {
-    let buffer = load_binary(path).await?;
+    // let buffer = load_binary(path).await?;
 
     // File Header
     let (file_is_gltf, buffer) = buffer.split_at(4);
