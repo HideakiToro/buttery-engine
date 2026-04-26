@@ -51,6 +51,7 @@ impl ButteryGame for ButteryExample {
         let object = Object::new(
             [0.0, 0.0, 0.0],
             [Deg(0.0), Deg(0.0), Deg(0.0)],
+            include_bytes!("./models/cube.glb"),
             "./models/cube.glb".into(),
             components,
             &mut state.world_diff,
