@@ -1,9 +1,11 @@
+use cgmath::Deg;
 use uuid::Uuid;
 
 use crate::{component::ButteryComponent, registry::Registry};
 
 pub struct ObjectData {
     pub position: [f32; 3],
+    pub rotation: [Deg<f32>; 3],
     id: Uuid,
 }
 
@@ -24,6 +26,7 @@ impl Object {
         let mut object = Object {
             data: ObjectData {
                 position: [0.0, 0.0, 0.0],
+                rotation: [Deg(0.0), Deg(0.0), Deg(0.0)],
                 id: Uuid::new_v4(),
             },
             model_path: "".into(),
@@ -37,6 +40,7 @@ impl Object {
 
     pub fn new(
         position: [f32; 3],
+        rotation: [Deg<f32>; 3],
         model_path: String,
         components: Vec<Box<dyn ButteryComponent>>,
         world_diff: &mut Registry<Object>,
@@ -44,6 +48,7 @@ impl Object {
         let mut object = Object {
             data: ObjectData {
                 position,
+                rotation,
                 id: Uuid::new_v4(),
             },
             model_path,
