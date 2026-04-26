@@ -2,7 +2,7 @@ use super::{
     binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
-    offset::OffsetUniform,
+    offset::ModelTransform,
     vertex::Vertex,
 };
 use bytemuck::bytes_of;
@@ -311,13 +311,19 @@ pub async fn parse_glb(
                 usage: BufferUsages::VERTEX,
             });
 
-            let offset = OffsetUniform {
+            let transform = ModelTransform {
                 offset: [0.0, 0.0, 0.0, 0.0],
+                rotation: [
+                    [0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0],
+                ],
             };
 
-            let offset_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            let transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Offset Buffer"),
-                contents: bytes_of(&offset),
+                contents: bytes_of(&transform),
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             });
 
@@ -326,15 +332,15 @@ pub async fn parse_glb(
                 layout: offset_bind_group_layout,
                 entries: &[BindGroupEntry {
                     binding: 0,
-                    resource: offset_buffer.as_entire_binding(),
+                    resource: transform_buffer.as_entire_binding(),
                 }],
             });
 
             meshes.push(Mesh {
                 index_buffer,
                 vertex_buffer,
-                offset_buffer,
-                offset_bind_group,
+                transform_buffer,
+                transform_bind_group: offset_bind_group,
                 num_indices: mesh.indices.len() as u32,
                 index_format: IndexFormat::Uint16,
                 texture_bind_group,

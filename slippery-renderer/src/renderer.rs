@@ -3,7 +3,7 @@ use super::{
     glb_parser::parse_glb,
     light::{BiasUniform, LightUniform},
     mesh::Mesh,
-    offset::OffsetUniform,
+    offset::ModelTransform,
     vertex::Vertex,
 };
 use buttery_engine::{
@@ -13,7 +13,7 @@ use buttery_engine::{
     world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;
-use cgmath::Deg;
+use cgmath::{Deg, Matrix4};
 use egui::{Align2, Ui};
 use std::{any::Any, collections::HashMap, sync::Arc};
 use wgpu::{
@@ -59,7 +59,7 @@ pub struct SlipperyRenderer {
 
     show_light_view: bool,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    offset_bind_group_layout: wgpu::BindGroupLayout,
+    transform_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl SlipperyRenderer {
@@ -155,7 +155,6 @@ impl SlipperyRenderer {
         let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
         let projection =
             Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
-        // let camera_controller = CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -251,7 +250,7 @@ impl SlipperyRenderer {
             label: Some("camera_light_bind_group"),
         });
 
-        let offset_bind_group_layout =
+        let transform_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("Offset BindGroup Layout"),
                 entries: &[BindGroupLayoutEntry {
@@ -348,7 +347,7 @@ impl SlipperyRenderer {
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
                     &camera_light_bind_group_layout,
-                    &offset_bind_group_layout,
+                    &transform_bind_group_layout,
                     &shadow_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
@@ -423,7 +422,10 @@ impl SlipperyRenderer {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_light_bind_group_layout, &offset_bind_group_layout],
+                bind_group_layouts: &[
+                    &camera_light_bind_group_layout,
+                    &transform_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
             let shader = device.create_shader_module(wgpu::include_wgsl!("shader/light.wgsl"));
@@ -522,7 +524,7 @@ impl SlipperyRenderer {
             show_light_view: false,
 
             texture_bind_group_layout,
-            offset_bind_group_layout,
+            transform_bind_group_layout,
         })
     }
 
@@ -560,7 +562,7 @@ impl ButteryRenderer for SlipperyRenderer {
             &self.device,
             &self.queue,
             &self.texture_bind_group_layout,
-            &self.offset_bind_group_layout,
+            &self.transform_bind_group_layout,
         ))
         .unwrap();
         self.mesh_cache.insert(
@@ -623,9 +625,17 @@ impl ButteryRenderer for SlipperyRenderer {
                         object.data.position[2],
                         0.0,
                     ];
-                    let uniform = OffsetUniform { offset };
+
+                    let rotation = Matrix4::from_angle_y(object.data.rotation[1])
+                        * Matrix4::from_angle_x(object.data.rotation[0])
+                        * Matrix4::from_angle_z(object.data.rotation[2]);
+
+                    let transform = ModelTransform {
+                        offset,
+                        rotation: rotation.into(),
+                    };
                     self.queue
-                        .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
+                        .write_buffer(&mesh.transform_buffer, 0, bytes_of(&transform));
 
                     self.meshes.push(mesh.clone());
                 }
@@ -690,7 +700,7 @@ impl ButteryRenderer for SlipperyRenderer {
 
             for mesh in &self.meshes {
                 pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
-                pass.set_bind_group(1, &mesh.offset_bind_group, &[]);
+                pass.set_bind_group(1, &mesh.transform_bind_group, &[]);
                 pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
                 pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
@@ -733,7 +743,7 @@ impl ButteryRenderer for SlipperyRenderer {
             for mesh in &self.meshes {
                 render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_light_bind_group, &[]);
-                render_pass.set_bind_group(2, &mesh.offset_bind_group, &[]);
+                render_pass.set_bind_group(2, &mesh.transform_bind_group, &[]);
                 render_pass.set_bind_group(3, &self.shadow_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);

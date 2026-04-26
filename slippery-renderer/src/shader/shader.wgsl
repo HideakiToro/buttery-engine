@@ -26,12 +26,13 @@ struct BiasUniform {
 @group(1) @binding(2)
 var<uniform> u_bias: BiasUniform;
 
-struct OffsetUniform {
+struct TransformUniform {
     offset: vec4<f32>,
+    rotation: mat4x4<f32>,
 };
 
 @group(2) @binding(0)
-var<uniform> u_offset: OffsetUniform;
+var<uniform> u_transform: TransformUniform;
 
 @group(3) @binding(0)
 var shadow_map: texture_depth_2d;
@@ -58,7 +59,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
-    var pos = vec4<f32>(model.position, 1.0) + u_offset.offset;
+    var pos = (u_transform.rotation * vec4<f32>(model.position, 1.0)) + u_transform.offset;
     out.clip_position = camera.view_proj * pos;
     out.world_position = pos.xyz;
     out.world_normal = model.normals;
