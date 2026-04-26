@@ -17,6 +17,7 @@ impl ObjectData {
 
 pub struct Object {
     pub data: ObjectData,
+    pub model_buffer: Option<&'static [u8]>,
     pub model_path: String,
     pub components: Vec<Box<dyn ButteryComponent>>,
 }
@@ -29,6 +30,7 @@ impl Object {
                 rotation: [Deg(0.0), Deg(0.0), Deg(0.0)],
                 id: Uuid::new_v4(),
             },
+            model_buffer: None,
             model_path: "".into(),
             components: Vec::new(),
         };
@@ -41,6 +43,7 @@ impl Object {
     pub fn new(
         position: [f32; 3],
         rotation: [Deg<f32>; 3],
+        model_buffer: &'static [u8],
         model_path: String,
         components: Vec<Box<dyn ButteryComponent>>,
         world_diff: &mut Registry<Object>,
@@ -51,6 +54,7 @@ impl Object {
                 rotation,
                 id: Uuid::new_v4(),
             },
+            model_buffer: Some(model_buffer),
             model_path,
             components,
         };
