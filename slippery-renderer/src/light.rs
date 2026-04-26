@@ -1,3 +1,5 @@
+use crate::camera::SlipperyCamera;
+
 use super::camera::Projection;
 use buttery_engine::camera::Camera;
 

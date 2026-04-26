@@ -15,6 +15,7 @@ use std::f32::consts::PI;
 
 pub struct ButteryExample {
     camera: Camera,
+    light: Camera,
     camera_controller: CameraController,
     open_menu: bool,
 }
@@ -22,9 +23,11 @@ pub struct ButteryExample {
 impl ButteryExample {
     pub fn new() -> Self {
         let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
+        let light = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0));
 
         Self {
             camera,
+            light,
             camera_controller: CameraController::new(4.0, 0.4),
             open_menu: false,
         }
@@ -45,6 +48,8 @@ impl ButteryGame for ButteryExample {
             &mut state.world_diff,
         );
         state.world_model.objects.insert(object.get_id(), object);
+
+        state.world_model.light = self.light;
     }
 
     fn on_update(&mut self, state: &mut ButteryEngineState) {

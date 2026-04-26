@@ -6,6 +6,7 @@ use crate::{camera::Camera, object::Object, registry::Registry};
 
 pub struct ButteryWorldModel {
     pub camera: Camera,
+    pub light: Camera,
     pub objects: HashMap<String, Object>,
 }
 
@@ -13,6 +14,7 @@ impl ButteryWorldModel {
     pub fn default() -> Self {
         Self {
             camera: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0)),
+            light: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0)),
             objects: HashMap::new(),
         }
     }

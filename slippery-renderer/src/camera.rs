@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Rad, perspective};
+use cgmath::{InnerSpace, Matrix4, Rad, Vector3, perspective};
 
 use buttery_engine::camera::Camera;
 
@@ -57,5 +57,23 @@ impl CameraUniform {
     pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
         self.view_position = camera.position.to_homogeneous().into();
         self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
+    }
+}
+
+pub trait SlipperyCamera {
+    fn calc_matrix(&self) -> Matrix4<f32>;
+
+    fn direction(&self) -> Vector3<f32>;
+}
+
+impl SlipperyCamera for Camera {
+    fn calc_matrix(&self) -> Matrix4<f32> {
+        Matrix4::look_to_rh(self.position, self.direction(), Vector3::unit_y())
+    }
+
+    fn direction(&self) -> Vector3<f32> {
+        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+        Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize()
     }
 }

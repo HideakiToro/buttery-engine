@@ -570,47 +570,65 @@ impl ButteryRenderer for SlipperyRenderer {
     }
 
     fn on_update(&mut self, world_model: &ButteryWorldModel) {
-        self.camera_uniform
-            .update_view_proj(&world_model.camera, &self.projection);
-
-        let camera_uniform = if self.show_light_view {
-            self.light_camera_uniform
-        } else {
+        // Update Camera
+        {
             self.camera_uniform
-        };
+                .update_view_proj(&world_model.camera, &self.projection);
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[camera_uniform]),
-        );
-
-        self.meshes.clear();
-
-        for (_, object) in &world_model.objects {
-            let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
-                meshes
+            let camera_uniform = if self.show_light_view {
+                self.light_camera_uniform
             } else {
-                self.load_model(&object.model_path);
-                let Some(meshes) = self.mesh_cache.get(&object.model_path) else {
-                    panic!("Missing mesh {}", object.model_path);
-                };
-                meshes
+                self.camera_uniform
             };
 
-            for mesh in meshes {
-                // Offset
-                let offset = [
-                    object.data.position[0],
-                    object.data.position[1],
-                    object.data.position[2],
-                    0.0,
-                ];
-                let uniform = OffsetUniform { offset };
-                self.queue
-                    .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
+            self.queue.write_buffer(
+                &self.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[camera_uniform]),
+            );
+        }
 
-                self.meshes.push(mesh.clone());
+        // Update Light
+        {
+            self.light_camera_uniform
+                .update_view_proj(&world_model.light, &self.projection);
+
+            self.queue.write_buffer(
+                &self.light_buffer,
+                0,
+                bytemuck::cast_slice(&[self.light_camera_uniform]),
+            );
+        }
+
+        // Update Meshes/Offsets
+        {
+            self.meshes.clear();
+
+            for (_, object) in &world_model.objects {
+                let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
+                    meshes
+                } else {
+                    self.load_model(&object.model_path);
+                    let Some(meshes) = self.mesh_cache.get(&object.model_path) else {
+                        panic!("Missing mesh {}", object.model_path);
+                    };
+                    meshes
+                };
+
+                for mesh in meshes {
+                    // Offset
+                    let offset = [
+                        object.data.position[0],
+                        object.data.position[1],
+                        object.data.position[2],
+                        0.0,
+                    ];
+                    let uniform = OffsetUniform { offset };
+                    self.queue
+                        .write_buffer(&mesh.offset_buffer, 0, bytes_of(&uniform));
+
+                    self.meshes.push(mesh.clone());
+                }
             }
         }
     }
