@@ -217,13 +217,9 @@ impl SlipperyRenderer {
         });
 
         #[cfg(not(target_arch = "wasm32"))]
-        let bias_uniform = BiasUniform {
-            bias: [0.000001; 4],
-        };
+        let bias_uniform = BiasUniform { bias: [0.00001; 4] };
         #[cfg(target_arch = "wasm32")]
-        let bias_uniform = BiasUniform {
-            bias: [0.000002; 4],
-        };
+        let bias_uniform = BiasUniform { bias: [0.00001; 4] };
 
         let bias_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Bias Buffer"),

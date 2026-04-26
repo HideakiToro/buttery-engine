@@ -62,7 +62,7 @@ fn vs_main(
     var pos = (u_transform.rotation * vec4<f32>(model.position, 1.0)) + u_transform.offset;
     out.clip_position = camera.view_proj * pos;
     out.world_position = pos.xyz;
-    out.world_normal = model.normals;
+    out.world_normal = normalize((u_transform.rotation * vec4<f32>(model.normals, 0.0)).xyz);
     return out;
 }
 
