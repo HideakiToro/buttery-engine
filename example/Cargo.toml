@@ -1,6 +1,6 @@
 [package]
 name = "buttery-engine-example"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 
 [dependencies]
@@ -9,5 +9,5 @@ buttery-engine = { version = "0.3.0" }
 cgmath = { version = "0.18.0" }
 console_error_panic_hook = "0.1.7"
 rand = { version = "0.10.1" }
-slippery-renderer = { version = "0.3.0" }
+slippery-renderer = { version = "0.3.1" }
 wasm-bindgen = "0.2.114"

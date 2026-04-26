@@ -18,6 +18,9 @@ pub struct ButteryExample {
     light: Camera,
     camera_controller: CameraController,
     open_menu: bool,
+    fps_text: String,
+    frame_counter: i32,
+    time_since_last_update: f32,
 }
 
 impl ButteryExample {
@@ -30,6 +33,9 @@ impl ButteryExample {
             light,
             camera_controller: CameraController::new(4.0, 0.4),
             open_menu: false,
+            fps_text: "Hello World!".into(),
+            frame_counter: 0,
+            time_since_last_update: 0.0,
         }
     }
 }
@@ -59,6 +65,25 @@ impl ButteryGame for ButteryExample {
             .update_camera(&mut self.camera, state.delta_time);
 
         state.world_model.camera = self.camera;
+
+        self.frame_counter += 1;
+        self.time_since_last_update += state.delta_time;
+
+        if self.time_since_last_update >= 0.2 {
+            self.fps_text = format!(
+                "{:.0} FPS",
+                self.frame_counter as f32 / self.time_since_last_update
+            );
+
+            self.frame_counter = 0;
+            self.time_since_last_update = 0.0;
+        }
+
+        if self.open_menu {
+            state
+                .renderer
+                .update_ui_model(Some(build_ui_model(self.fps_text.clone())));
+        }
     }
 
     fn on_key_event(&mut self, state: &mut ButteryEngineState, key_event: KeyEvent) {
@@ -71,7 +96,9 @@ impl ButteryGame for ButteryExample {
             }
             Key::E if key_event.pressed && !self.open_menu => {
                 self.open_menu = true;
-                state.renderer.update_ui_model(Some(build_ui_model()));
+                state
+                    .renderer
+                    .update_ui_model(Some(build_ui_model(self.fps_text.clone())));
             }
             Key::R if key_event.pressed => {
                 self.camera.yaw -= Rad(PI * 0.5);
@@ -87,14 +114,14 @@ impl ButteryGame for ButteryExample {
     }
 }
 
-fn build_ui_model() -> ButteryUIModel {
+fn build_ui_model(fps: String) -> ButteryUIModel {
     ButteryUIModel {
         windows: vec![ButteryUIWindow {
             max_width: 600.0,
             max_height: 400.0,
             corner_radius: 10.0,
             inner_margin: 16,
-            child: ButteryUIElement::Column(vec![ButteryUIElement::Text("Hello World!".into())]),
+            child: ButteryUIElement::Column(vec![ButteryUIElement::Text(fps)]),
             ..Default::default()
         }],
     }
