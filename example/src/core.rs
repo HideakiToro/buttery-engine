@@ -40,9 +40,11 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_init(&mut self, state: &mut ButteryEngineState) {
-        let components: Vec<Box<dyn ButteryComponent>> = vec![Box::new(ExampleComponent {})];
+        let components: Vec<Box<dyn ButteryComponent>> =
+            vec![Box::new(ExampleComponent::default())];
         let object = Object::new(
             [0.0, 0.0, 0.0],
+            [Deg(0.0), Deg(0.0), Deg(0.0)],
             "./models/cube.glb".into(),
             components,
             &mut state.world_diff,
