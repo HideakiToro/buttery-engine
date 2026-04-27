@@ -1,6 +1,6 @@
 [package]
 name = "slippery-renderer"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license = "MIT"
 description = "This crate is the first implementation for a renderer of the buttery-engine game-engine project. Since I am very much still a beginner, this renderer's performance might slip sometimes. This is where it got it's name from."

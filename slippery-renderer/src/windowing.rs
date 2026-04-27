@@ -31,7 +31,7 @@ impl<G: ButteryGame> SlipperyRendererWindowing<G> {
 
 pub struct State<G: ButteryGame> {
     #[cfg(target_arch = "wasm32")]
-    proxy: Option<EventLoopProxy<SlipperyRenderer>>,
+    proxy: Option<EventLoopProxy<SlipperyRenderer<G>>>,
     pub engine: ButteryEngine<G>,
 }
 
