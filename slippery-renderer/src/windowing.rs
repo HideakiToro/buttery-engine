@@ -1,11 +1,12 @@
 use super::renderer::SlipperyRenderer;
 use buttery_engine::{
     engine::ButteryEngine,
+    game::ButteryGame,
     key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent},
     renderer::ButteryRenderer,
     windowing::ButteryWindowingSystem,
 };
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use winit::event_loop::EventLoopProxy;
 use winit::{
@@ -16,22 +17,26 @@ use winit::{
     window::Window,
 };
 
-pub struct SlipperyRendererWindowing {}
+pub struct SlipperyRendererWindowing<G: ButteryGame> {
+    _phantom_data: PhantomData<G>,
+}
 
-impl SlipperyRendererWindowing {
-    pub fn new() -> Box<dyn ButteryWindowingSystem> {
-        Box::new(Self {}) as Box<dyn ButteryWindowingSystem>
+impl<G: ButteryGame> SlipperyRendererWindowing<G> {
+    pub fn new() -> Box<dyn ButteryWindowingSystem<G>> {
+        Box::new(Self {
+            _phantom_data: PhantomData {},
+        }) as Box<dyn ButteryWindowingSystem<G>>
     }
 }
 
-pub struct State {
+pub struct State<G: ButteryGame> {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<EventLoopProxy<SlipperyRenderer>>,
-    pub engine: ButteryEngine,
+    pub engine: ButteryEngine<G>,
 }
 
-impl ButteryWindowingSystem for SlipperyRendererWindowing {
-    fn run(&self, engine: ButteryEngine) -> anyhow::Result<()> {
+impl<G: ButteryGame> ButteryWindowingSystem<G> for SlipperyRendererWindowing<G> {
+    fn run(&self, engine: ButteryEngine<G>) -> anyhow::Result<()> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             env_logger::init();
@@ -75,7 +80,7 @@ impl ButteryWindowingSystem for SlipperyRendererWindowing {
     }
 }
 
-impl ApplicationHandler<SlipperyRenderer> for State {
+impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[allow(unused_mut)]
         let mut window_attributes = Window::default_attributes();
@@ -104,7 +109,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             // await the initialization of the renderer
             self.engine.state.renderer =
                 Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap())
-                    as Box<dyn ButteryRenderer>;
+                    as Box<dyn ButteryRenderer<G>>;
             self.engine.on_init();
         }
 
@@ -129,7 +134,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
     }
 
     #[allow(unused_mut)]
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut renderer: SlipperyRenderer) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut renderer: SlipperyRenderer<G>) {
         // This is where proxy.send_event() ends up
         #[cfg(target_arch = "wasm32")]
         {
@@ -139,7 +144,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
                 renderer.window.inner_size().height,
             );
         }
-        self.engine.state.renderer = Box::new(renderer) as Box<dyn ButteryRenderer>;
+        self.engine.state.renderer = Box::new(renderer) as Box<dyn ButteryRenderer<G>>;
         #[cfg(target_arch = "wasm32")]
         self.engine.on_init();
     }
@@ -164,7 +169,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
             .state
             .renderer
             .as_any_mut()
-            .downcast_mut::<SlipperyRenderer>()
+            .downcast_mut::<SlipperyRenderer<G>>()
         {
             let _ = slippery_renderer
                 .egui_state
@@ -181,7 +186,7 @@ impl ApplicationHandler<SlipperyRenderer> for State {
 
                 self.engine.on_update();
 
-                self.engine.state.renderer.render();
+                self.engine.state.renderer.render(&mut self.engine.game);
                 // match self.engine.renderer.render() {
                 //     Ok(_) => {}
                 //     // Reconfigure the surface if it's lost or outdated

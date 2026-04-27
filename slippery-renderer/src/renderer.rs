@@ -8,6 +8,7 @@ use super::{
 };
 use buttery_engine::{
     camera::Camera,
+    game::ButteryGame,
     renderer::ButteryRenderer,
     ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
     world_model::ButteryWorldModel,
@@ -22,7 +23,7 @@ use wgpu::{
 };
 use winit::window::Window;
 
-pub struct SlipperyRenderer {
+pub struct SlipperyRenderer<G: ButteryGame> {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
@@ -55,14 +56,14 @@ pub struct SlipperyRenderer {
     pub egui_ctx: egui::Context,
     pub egui_state: egui_winit::State,
     pub egui_renderer: egui_wgpu::Renderer,
-    ui_model: Option<ButteryUIModel>,
+    ui_model: Option<ButteryUIModel<G>>,
 
     show_light_view: bool,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     transform_bind_group_layout: wgpu::BindGroupLayout,
 }
 
-impl SlipperyRenderer {
+impl<G: ButteryGame> SlipperyRenderer<G> {
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
@@ -524,7 +525,7 @@ impl SlipperyRenderer {
         })
     }
 
-    pub fn ui_model_to_ui(ui: &mut Ui, element: &ButteryUIElement) {
+    pub fn ui_model_to_ui(ui: &mut Ui, element: &ButteryUIElement<G>, game: &mut G) {
         match element {
             ButteryUIElement::Default => {
                 ui.label("".to_string());
@@ -535,15 +536,20 @@ impl SlipperyRenderer {
             ButteryUIElement::Column(children) => {
                 ui.vertical_centered(|mut ui| {
                     for child in children {
-                        Self::ui_model_to_ui(&mut ui, child);
+                        Self::ui_model_to_ui(&mut ui, child, game);
                     }
                 });
+            }
+            ButteryUIElement::Button(btn) => {
+                if ui.button(btn.label.clone()).clicked() {
+                    (btn.on_click)(game);
+                }
             }
         }
     }
 }
 
-impl ButteryRenderer for SlipperyRenderer {
+impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -643,7 +649,7 @@ impl ButteryRenderer for SlipperyRenderer {
         }
     }
 
-    fn render(&mut self) {
+    fn render(&mut self, game: &mut G) {
         let depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Depth Texture"),
             size: wgpu::Extent3d {
@@ -785,7 +791,7 @@ impl ButteryRenderer for SlipperyRenderer {
                             .corner_radius(window.corner_radius)
                             .inner_margin(egui::Margin::same(window.inner_margin))
                             .show(ui, |mut ui| {
-                                Self::ui_model_to_ui(&mut ui, &window.child);
+                                Self::ui_model_to_ui(&mut ui, &window.child, game);
                             });
                     });
             }
@@ -894,7 +900,7 @@ impl ButteryRenderer for SlipperyRenderer {
         }
     }
 
-    fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel>) {
+    fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel<G>>) {
         self.ui_model = ui_model;
     }
 }
