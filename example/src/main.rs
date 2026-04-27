@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
 #[wasm_bindgen(start)]
 pub fn run_web() -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
-    let game = Box::new(ButteryExample::new());
+    let game = ButteryExample::new();
     if let Err(e) = ButteryEngine::run(SlipperyRendererWindowing::new(), game) {
         println!("{e:#?}");
     }
