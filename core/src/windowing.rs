@@ -1,5 +1,5 @@
-use crate::engine::ButteryEngine;
+use crate::{engine::ButteryEngine, game::ButteryGame};
 
-pub trait ButteryWindowingSystem {
-    fn run(&self, engine: ButteryEngine) -> anyhow::Result<()>;
+pub trait ButteryWindowingSystem<G: ButteryGame + 'static> {
+    fn run(&self, engine: ButteryEngine<G>) -> anyhow::Result<()>;
 }

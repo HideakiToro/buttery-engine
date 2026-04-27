@@ -17,23 +17,23 @@ pub enum ButteryEvent {
     KeyPress(String),
 }
 
-pub struct ButteryEngineState {
-    pub renderer: Box<dyn ButteryRenderer>,
+pub struct ButteryEngineState<G: ButteryGame> {
+    pub renderer: Box<dyn ButteryRenderer<G>>,
     last_frame_time: Instant,
     pub delta_time: f32,
     pub world_model: ButteryWorldModel,
     pub world_diff: Registry<Object>,
 }
 
-pub struct ButteryEngine {
-    pub state: ButteryEngineState,
-    pub game: Box<dyn ButteryGame>,
+pub struct ButteryEngine<G: ButteryGame> {
+    pub state: ButteryEngineState<G>,
+    pub game: G,
 }
 
-impl ButteryEngine {
+impl<G: ButteryGame> ButteryEngine<G> {
     pub fn run(
-        windowing_system: Box<dyn ButteryWindowingSystem>,
-        game: Box<dyn ButteryGame>,
+        windowing_system: Box<dyn ButteryWindowingSystem<G>>,
+        game: G,
     ) -> anyhow::Result<()> {
         let engine = Self {
             game,

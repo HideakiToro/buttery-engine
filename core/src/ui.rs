@@ -1,10 +1,12 @@
+use crate::game::ButteryGame;
+
 #[derive(Default)]
-pub struct ButteryUIModel {
-    pub windows: Vec<ButteryUIWindow>,
+pub struct ButteryUIModel<G: ButteryGame> {
+    pub windows: Vec<ButteryUIWindow<G>>,
 }
 
 #[derive(Default)]
-pub struct ButteryUIWindow {
+pub struct ButteryUIWindow<G: ButteryGame> {
     pub relative_position: ButteryUIWindowRelativePosition,
     pub offset: ButterUIWindowOffset,
     pub corner_radius: f32,
@@ -12,7 +14,7 @@ pub struct ButteryUIWindow {
     pub max_width: f32,
     pub max_height: f32,
     pub background_color: ButteryUIColor,
-    pub child: ButteryUIElement,
+    pub child: ButteryUIElement<G>,
 }
 
 #[derive(Default, Clone)]
@@ -28,11 +30,12 @@ pub struct ButterUIWindowOffset {
 }
 
 #[derive(Default)]
-pub enum ButteryUIElement {
+pub enum ButteryUIElement<G: ButteryGame> {
     #[default]
     Default,
     Text(String),
-    Column(Vec<ButteryUIElement>),
+    Column(Vec<ButteryUIElement<G>>),
+    Button(ButteryUIButton<G>),
 }
 
 #[derive(Default)]
@@ -42,3 +45,10 @@ pub struct ButteryUIColor {
     pub b: u8,
     pub a: u8,
 }
+
+pub struct ButteryUIButton<G: ButteryGame> {
+    pub label: String,
+    pub on_click: ButteryUIButtonCallback<G>,
+}
+
+pub type ButteryUIButtonCallback<G> = fn(&mut G);
