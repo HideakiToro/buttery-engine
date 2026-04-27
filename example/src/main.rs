@@ -5,7 +5,7 @@ use slippery_renderer::windowing::SlipperyRendererWindowing;
 use wasm_bindgen::prelude::*;
 
 fn main() -> anyhow::Result<()> {
-    let game = Box::new(ButteryExample::new());
+    let game = ButteryExample::new();
     ButteryEngine::run(SlipperyRendererWindowing::new(), game)
 }
 
