@@ -187,18 +187,6 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
                 self.engine.on_update();
 
                 self.engine.state.renderer.render(&mut self.engine.game);
-                // match self.engine.renderer.render() {
-                //     Ok(_) => {}
-                //     // Reconfigure the surface if it's lost or outdated
-                //     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                //         // let size = state.window.inner_size();
-                //         let size = self.engine.renderer.window_inner_size();
-                //         self.engine.renderer.resize(size.width, size.height);
-                //     }
-                //     Err(e) => {
-                //         log::error!("Unable to render {}", e);
-                //     }
-                // }
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -269,6 +257,17 @@ fn key_code_to_buttery_key(value: KeyCode) -> ButteryKey {
         KeyCode::ShiftRight => ButteryKey::RightShift,
         KeyCode::Enter => ButteryKey::Enter,
         KeyCode::Escape => ButteryKey::Escape,
+        KeyCode::AltLeft => ButteryKey::LeftAlt,
+        KeyCode::AltRight => ButteryKey::RightAlt,
+        KeyCode::Backspace => ButteryKey::Backspace,
+        KeyCode::CapsLock => ButteryKey::CapsLock,
+        KeyCode::Comma => ButteryKey::Comma,
+        KeyCode::Minus => ButteryKey::Minus,
+        KeyCode::Period => ButteryKey::Period,
+        KeyCode::Space => ButteryKey::Space,
+        KeyCode::SuperLeft => ButteryKey::OSLeft,
+        KeyCode::SuperRight => ButteryKey::OSRight,
+        KeyCode::Tab => ButteryKey::Tab,
         key => {
             println!("Unknown key {key:#?} event");
             ButteryKey::None

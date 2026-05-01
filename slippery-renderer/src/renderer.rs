@@ -15,7 +15,7 @@ use buttery_engine::{
 };
 use bytemuck::bytes_of;
 use cgmath::{Deg, Matrix4};
-use egui::{Align2, Ui};
+use egui::{Align2, Color32, Frame, Id, Stroke, Ui, vec2};
 use std::{any::Any, collections::HashMap, sync::Arc};
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
@@ -531,18 +531,117 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 ui.label("".to_string());
             }
             ButteryUIElement::Text(text) => {
-                ui.label(text);
+                let label = egui::Label::new(format!("{}", text.text));
+                if let Some(size) = &text.size {
+                    ui.add_sized(vec2(size.x, size.y), label);
+                } else {
+                    ui.add(label);
+                }
             }
-            ButteryUIElement::Column(children) => {
-                ui.vertical_centered(|mut ui| {
-                    for child in children {
-                        Self::ui_model_to_ui(&mut ui, child, game);
-                    }
-                });
+            ButteryUIElement::Column(column) => {
+                if column.centered {
+                    ui.vertical_centered(|mut ui| {
+                        for child in &column.children {
+                            Self::ui_model_to_ui(&mut ui, child, game);
+                        }
+                    });
+                } else {
+                    ui.vertical(|mut ui| {
+                        for child in &column.children {
+                            Self::ui_model_to_ui(&mut ui, child, game);
+                        }
+                    });
+                }
+            }
+            ButteryUIElement::Row(row) => {
+                if row.centered {
+                    ui.horizontal_centered(|mut ui| {
+                        for child in &row.children {
+                            Self::ui_model_to_ui(&mut ui, child, game);
+                        }
+                    });
+                } else {
+                    ui.horizontal(|mut ui| {
+                        for child in &row.children {
+                            Self::ui_model_to_ui(&mut ui, child, game);
+                        }
+                    });
+                }
             }
             ButteryUIElement::Button(btn) => {
-                if ui.button(btn.label.clone()).clicked() {
+                let widget = egui::Button::new(btn.label.clone())
+                    .min_size(egui::Vec2 {
+                        x: btn.width,
+                        y: btn.height,
+                    })
+                    .corner_radius(btn.corner_radius);
+
+                let response = ui.add(widget);
+                if response.clicked() {
                     (btn.on_click)(game);
+                }
+            }
+            ButteryUIElement::Input(input) => {
+                let mut output = input.current_value.clone();
+
+                let color = if let Some(color) = &input.background_color {
+                    Color32::from_rgba_unmultiplied(color.r, color.g, color.b, color.a)
+                } else {
+                    Color32::TRANSPARENT
+                };
+
+                let mut text_edit = egui::TextEdit::singleline(&mut output)
+                    .background_color(color)
+                    .frame(false);
+                if let Some(size) = &input.size {
+                    text_edit = text_edit.min_size(vec2(size.x, size.y));
+                }
+
+                if ui.add(text_edit).changed() {
+                    (input.on_changed)(output, game);
+                }
+            }
+            ButteryUIElement::Container(container) => {
+                let stroke = if let Some(outline) = &container.outline {
+                    Stroke::new(
+                        outline.width,
+                        Color32::from_rgba_unmultiplied(
+                            outline.color.r,
+                            outline.color.g,
+                            outline.color.b,
+                            outline.color.a,
+                        ),
+                    )
+                } else {
+                    Stroke::new(0.0, Color32::TRANSPARENT)
+                };
+
+                let frame = Frame::new()
+                    .corner_radius(container.corner_radius)
+                    .fill(Color32::from_rgb(
+                        container.color.r,
+                        container.color.g,
+                        container.color.b,
+                        // container.color.a,
+                    ))
+                    .stroke(stroke);
+
+                if let Some(size) = &container.size {
+                    ui.scope(|ui| {
+                        frame
+                            .inner_margin(vec2(size.x / 2.0, size.y / 2.0))
+                            .show(ui, |mut ui| {
+                                for child in &container.children {
+                                    Self::ui_model_to_ui(&mut ui, child, game);
+                                }
+                            });
+                    });
+                } else {
+                    frame.show(ui, |mut ui| {
+                        for child in &container.children {
+                            Self::ui_model_to_ui(&mut ui, child, game);
+                        }
+                    });
                 }
             }
         }
@@ -772,6 +871,7 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
         if let Some(ui_model) = &self.ui_model {
             for window in &ui_model.windows {
                 egui::Area::new("panel".into())
+                    .id(Id::new(&window.id))
                     .anchor(
                         buttery_ui_window_relative_position_to_align_2(
                             window.relative_position.clone(),
@@ -783,13 +883,14 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                         ui.set_max_width(window.max_width);
                         ui.set_max_height(window.max_height);
                         egui::Frame::NONE
-                            .fill(egui::Color32::from_rgb(
+                            .fill(egui::Color32::from_rgba_unmultiplied(
                                 window.background_color.r,
                                 window.background_color.g,
                                 window.background_color.b,
+                                window.background_color.a,
                             ))
                             .corner_radius(window.corner_radius)
-                            .inner_margin(egui::Margin::same(window.inner_margin))
+                            .inner_margin(egui::Margin::same(window.padding))
                             .show(ui, |mut ui| {
                                 Self::ui_model_to_ui(&mut ui, &window.child, game);
                             });
@@ -909,6 +1010,14 @@ fn buttery_ui_window_relative_position_to_align_2(
     value: ButteryUIWindowRelativePosition,
 ) -> Align2 {
     match value {
+        ButteryUIWindowRelativePosition::TopLeft => Align2::LEFT_TOP,
+        ButteryUIWindowRelativePosition::TopCenter => Align2::CENTER_TOP,
+        ButteryUIWindowRelativePosition::TopRight => Align2::RIGHT_TOP,
+        ButteryUIWindowRelativePosition::CenterLeft => Align2::LEFT_CENTER,
         ButteryUIWindowRelativePosition::Centered => Align2::CENTER_CENTER,
+        ButteryUIWindowRelativePosition::CenterRight => Align2::RIGHT_CENTER,
+        ButteryUIWindowRelativePosition::BottomLeft => Align2::LEFT_BOTTOM,
+        ButteryUIWindowRelativePosition::BottomCenter => Align2::CENTER_BOTTOM,
+        ButteryUIWindowRelativePosition::BottomRight => Align2::RIGHT_BOTTOM,
     }
 }
