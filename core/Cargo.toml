@@ -1,6 +1,6 @@
 [package]
 name = "buttery-engine"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 license = "MIT"
 description = "A very simplistic game-engine written in rust. This is a learning project for me, so no promises on it's performance or stability."
