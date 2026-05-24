@@ -31,8 +31,8 @@ pub struct GLTFAccessor {
     pub count: u32,
     /// Specifies if the accessor’s elements are scalars, vectors, or matrices.
     pub r#type: GLTFAccessorType,
-    pub max: Option<Vec<i32>>,
-    pub min: Option<Vec<i32>>,
+    pub max: Option<Vec<f32>>,
+    pub min: Option<Vec<f32>>,
     pub sparse: Option<Value>, // TODO: define
     pub name: Option<String>,
     pub extensions: Option<Value>,

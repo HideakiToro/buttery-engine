@@ -727,18 +727,21 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                 return;
             }
 
-            let Ok(glb_meshes) = parse_glb(
+            let glb_meshes = match parse_glb(
                 buffer,
                 &self.device,
                 &self.queue,
                 &self.texture_bind_group_layout,
                 &self.transform_bind_group_layout,
-            ) else {
-                let state = Rc::new(RefCell::new(MeshStateHandle {
-                    state: MeshState::Error("Failed to parse model".into()),
-                }));
-                self.mesh_cache.insert(path.to_string(), state);
-                return;
+            ) {
+                Ok(res) => res,
+                Err(e) => {
+                    let state = Rc::new(RefCell::new(MeshStateHandle {
+                        state: MeshState::Error(e.to_string()),
+                    }));
+                    self.mesh_cache.insert(path.to_string(), state);
+                    return;
+                }
             };
 
             let state = Rc::new(RefCell::new(MeshStateHandle {
