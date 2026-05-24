@@ -2,8 +2,10 @@ use std::any::Any;
 
 use crate::{game::ButteryGame, ui::ButteryUIModel, world_model::ButteryWorldModel};
 
-pub trait ButteryRenderer<G: ButteryGame>: Send + Sync + Any {
-    fn load_model(&mut self, buffer: &'static [u8], path: &str);
+pub trait ButteryRenderer<G: ButteryGame>: Any {
+    fn load_model(&mut self, path: &str);
+
+    fn unload_model(&mut self, path: &str);
 
     fn on_update(&mut self, world_model: &ButteryWorldModel);
 
@@ -21,7 +23,9 @@ pub trait ButteryRenderer<G: ButteryGame>: Send + Sync + Any {
 pub struct FallbackRenderer {}
 
 impl<G: ButteryGame> ButteryRenderer<G> for FallbackRenderer {
-    fn load_model(&mut self, _buffer: &'static [u8], _path: &str) {}
+    fn load_model(&mut self, _path: &str) {}
+
+    fn unload_model(&mut self, _path: &str) {}
 
     fn on_update(&mut self, _world_model: &ButteryWorldModel) {}
 
