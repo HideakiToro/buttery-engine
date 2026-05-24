@@ -217,8 +217,7 @@ impl ButteryGame for ButteryExample {
         let object = Object::new(
             [0.0, 0.0, 0.0],
             [Deg(0.0), Deg(0.0), Deg(0.0)],
-            include_bytes!("./models/cube.glb"),
-            "./models/cube.glb".into(),
+            "models/cube.glb".into(),
             components,
             &mut state.world_diff,
         );
@@ -258,13 +257,21 @@ impl ButteryGame for ButteryExample {
         state: &mut ButteryEngineState<ButteryExample>,
         key_event: KeyEvent,
     ) {
-        match key_event.key {
-            Key::Escape if key_event.pressed => {
-                if self.open_menu {
-                    self.open_menu = false;
-                    state.renderer.update_ui_model(None);
+        if self.open_menu {
+            match key_event.key {
+                Key::Escape if key_event.pressed => {
+                    if self.open_menu {
+                        self.open_menu = false;
+                        state.renderer.update_ui_model(None);
+                    }
                 }
+                _ => {}
             }
+
+            return;
+        }
+
+        match key_event.key {
             Key::E if key_event.pressed && !self.open_menu => {
                 self.open_menu = true;
                 state.renderer.update_ui_model(Some(self.build_ui_model()));
