@@ -16,12 +16,29 @@ use buttery_engine::{
 use bytemuck::bytes_of;
 use cgmath::{Deg, Matrix4};
 use egui::{Align2, Color32, Frame, Id, Stroke, Ui, vec2};
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, io::Read, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::{JsFuture, spawn_local};
+#[cfg(target_arch = "wasm32")]
+use web_sys::{Request, RequestInit, RequestMode, Response};
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
     util::DeviceExt,
 };
 use winit::window::Window;
+
+pub enum MeshState {
+    Loading,
+    Ready(Vec<Arc<Mesh>>),
+    Error(String),
+}
+
+pub struct MeshStateHandle {
+    state: MeshState,
+}
 
 pub struct SlipperyRenderer<G: ButteryGame> {
     surface: wgpu::Surface<'static>,
@@ -35,7 +52,7 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     render_pipeline: wgpu::RenderPipeline,
 
     pub meshes: Vec<Arc<Mesh>>,
-    pub mesh_cache: HashMap<String, Vec<Arc<Mesh>>>,
+    pub mesh_cache: HashMap<String, Rc<RefCell<MeshStateHandle>>>,
     depth_format: wgpu::TextureFormat,
 
     projection: Projection,
@@ -61,6 +78,39 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     show_light_view: bool,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     transform_bind_group_layout: wgpu::BindGroupLayout,
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn fetch_model_data(
+    path: &str,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture: &wgpu::BindGroupLayout,
+    transform: &wgpu::BindGroupLayout,
+) -> Result<Vec<Mesh>, String> {
+    let opts = RequestInit::new();
+    opts.set_method("GET");
+    opts.set_mode(RequestMode::Cors);
+
+    let request = Request::new_with_str_and_init(path, &opts)
+        .map_err(|_| "Failed to create request".to_string())?;
+    let window = web_sys::window().ok_or_else(|| "Failed to get window".to_string())?;
+    let resp_value = JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|_| "Failed to fetch".to_string())?;
+
+    let resp: Response = resp_value
+        .dyn_into()
+        .map_err(|_| "Failed to parse response".to_string())?;
+    let buffer = JsFuture::from(
+        resp.array_buffer()
+            .map_err(|_| "Failed to convert response to buffer".to_string())?,
+    )
+    .await
+    .map_err(|_| "Failed to convert buffer to future".to_string())?;
+    let buffer = js_sys::Uint8Array::new(&buffer).to_vec();
+
+    parse_glb(buffer, device, queue, texture, transform).map_err(|err| err.to_string())
 }
 
 impl<G: ButteryGame> SlipperyRenderer<G> {
@@ -657,19 +707,78 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
         self
     }
 
-    fn load_model(&mut self, buffer: &'static [u8], path: &str) {
-        let glb_meshes = parse_glb(
-            buffer,
-            &self.device,
-            &self.queue,
-            &self.texture_bind_group_layout,
-            &self.transform_bind_group_layout,
-        )
-        .unwrap();
-        self.mesh_cache.insert(
-            path.into(),
-            glb_meshes.into_iter().map(|mesh| Arc::new(mesh)).collect(),
-        );
+    fn load_model(&mut self, path: &str) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let Ok(mut file) = std::fs::File::open(format!("./src/{path}")) else {
+                let state = Rc::new(RefCell::new(MeshStateHandle {
+                    state: MeshState::Error("File does not exist".into()),
+                }));
+                self.mesh_cache.insert(path.to_string(), state);
+                return;
+            };
+
+            let mut buffer = Vec::new();
+            if let Err(_) = file.read_to_end(&mut buffer) {
+                let state = Rc::new(RefCell::new(MeshStateHandle {
+                    state: MeshState::Error("Failed to read file".into()),
+                }));
+                self.mesh_cache.insert(path.to_string(), state);
+                return;
+            }
+
+            let Ok(glb_meshes) = parse_glb(
+                buffer,
+                &self.device,
+                &self.queue,
+                &self.texture_bind_group_layout,
+                &self.transform_bind_group_layout,
+            ) else {
+                let state = Rc::new(RefCell::new(MeshStateHandle {
+                    state: MeshState::Error("Failed to parse model".into()),
+                }));
+                self.mesh_cache.insert(path.to_string(), state);
+                return;
+            };
+
+            let state = Rc::new(RefCell::new(MeshStateHandle {
+                state: MeshState::Ready(
+                    glb_meshes.into_iter().map(|mesh| Arc::new(mesh)).collect(),
+                ),
+            }));
+            self.mesh_cache.insert(path.to_string(), state);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let entry = Rc::new(RefCell::new(MeshStateHandle {
+                state: MeshState::Loading,
+            }));
+            self.mesh_cache.insert(path.into(), entry.clone());
+
+            let device = self.device.clone();
+            let queue = self.queue.clone();
+            let texture = self.texture_bind_group_layout.clone();
+            let transform = self.transform_bind_group_layout.clone();
+            let path = path.to_string();
+
+            spawn_local(async move {
+                let result = fetch_model_data(&path, &device, &queue, &texture, &transform).await;
+
+                let new_state = match result {
+                    Ok(meshes) => {
+                        MeshState::Ready(meshes.into_iter().map(|mesh| Arc::new(mesh)).collect())
+                    }
+                    Err(e) => MeshState::Error(e),
+                };
+
+                entry.borrow_mut().state = new_state;
+            });
+        }
+    }
+
+    fn unload_model(&mut self, path: &str) {
+        self.mesh_cache.remove(path);
     }
 
     fn on_update(&mut self, world_model: &ButteryWorldModel) {
@@ -708,18 +817,31 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
             self.meshes.clear();
 
             for (_, object) in &world_model.objects {
-                let Some(model_buffer) = object.model_buffer else {
-                    continue;
-                };
+                let mesh_state =
+                    if let Some(mesh_state) = self.mesh_cache.get(&object.model_path) {
+                        mesh_state
+                    } else {
+                        self.load_model(&object.model_path);
+                        let Some(mesh_state) = self.mesh_cache.get(&object.model_path) else {
+                            panic!("Missing MeshState {}", object.model_path);
+                        };
+                        mesh_state
+                    }
+                    .borrow();
 
-                let meshes = if let Some(meshes) = self.mesh_cache.get(&object.model_path) {
-                    meshes
-                } else {
-                    self.load_model(model_buffer, &object.model_path);
-                    let Some(meshes) = self.mesh_cache.get(&object.model_path) else {
-                        panic!("Missing mesh {}", object.model_path);
-                    };
-                    meshes
+                let meshes = match &*&mesh_state.state {
+                    MeshState::Error(e) => {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        println!("Failed to load mesh: {e}");
+                        #[cfg(target_arch = "wasm32")]
+                        web_sys::console::log_1(&format!("Failed to load mesh {e}").into());
+                        continue;
+                    }
+                    MeshState::Loading => {
+                        println!("Mesh loading...");
+                        continue;
+                    }
+                    MeshState::Ready(meshes) => meshes,
                 };
 
                 for mesh in meshes {

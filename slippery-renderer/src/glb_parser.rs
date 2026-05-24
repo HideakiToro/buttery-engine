@@ -32,7 +32,7 @@ pub enum ParseError {
 }
 
 pub fn parse_glb(
-    buffer: &'static [u8],
+    buffer: Vec<u8>,
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
