@@ -1,8 +1,14 @@
 use std::any::Any;
 
-use crate::{game::ButteryGame, ui::ButteryUIModel, world_model::ButteryWorldModel};
+use crate::{
+    game::ButteryGame,
+    ui::{ButteryColor, ButteryUIModel},
+    world_model::ButteryWorldModel,
+};
 
 pub trait ButteryRenderer<G: ButteryGame>: Any {
+    fn set_background_color(&mut self, color: ButteryColor);
+
     fn load_model(&mut self, path: &str);
 
     fn unload_model(&mut self, path: &str);
@@ -23,6 +29,8 @@ pub trait ButteryRenderer<G: ButteryGame>: Any {
 pub struct FallbackRenderer {}
 
 impl<G: ButteryGame> ButteryRenderer<G> for FallbackRenderer {
+    fn set_background_color(&mut self, _color: ButteryColor) {}
+
     fn load_model(&mut self, _path: &str) {}
 
     fn unload_model(&mut self, _path: &str) {}

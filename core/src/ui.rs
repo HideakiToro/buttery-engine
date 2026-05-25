@@ -15,7 +15,7 @@ pub struct ButteryUIWindow<G: ButteryGame> {
     pub padding: i8,
     pub max_width: f32,
     pub max_height: f32,
-    pub background_color: ButteryUIColor,
+    pub background_color: ButteryColor,
     pub child: ButteryUIElement<G>,
 }
 
@@ -67,14 +67,15 @@ pub enum ButteryUIElement<G: ButteryGame> {
     Container(ButteryUIContainer<G>),
 }
 
-pub struct ButteryUIColor {
+#[derive(Clone)]
+pub struct ButteryColor {
     pub r: u8,
     pub g: u8,
     pub b: u8,
     pub a: u8,
 }
 
-impl Default for ButteryUIColor {
+impl Default for ButteryColor {
     fn default() -> Self {
         Self {
             r: Default::default(),
@@ -100,7 +101,7 @@ pub struct ButteryUIDirectional<G: ButteryGame> {
 pub struct ButteryUIInput<G: ButteryGame> {
     pub on_changed: ButteryUIInputChangedCallback<G>,
     pub current_value: String,
-    pub background_color: Option<ButteryUIColor>,
+    pub background_color: Option<ButteryColor>,
     pub size: Option<ButterUI2D>,
 }
 pub type ButteryUIInputChangedCallback<G> = fn(String, &mut G);
@@ -142,12 +143,12 @@ pub type ButteryUIButtonCallback<G> = fn(&mut G);
 pub struct ButteryUIContainer<G: ButteryGame> {
     pub size: Option<ButterUI2D>,
     pub children: Vec<ButteryUIElement<G>>,
-    pub color: ButteryUIColor,
+    pub color: ButteryColor,
     pub corner_radius: f32,
     pub outline: Option<ButteryUIContainerOutline>,
 }
 
 pub struct ButteryUIContainerOutline {
     pub width: f32,
-    pub color: ButteryUIColor,
+    pub color: ButteryColor,
 }
