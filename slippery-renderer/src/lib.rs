@@ -1,3 +1,4 @@
+pub mod async_model_loading;
 pub mod camera;
 pub mod glb_parser;
 pub mod gltf_dto;

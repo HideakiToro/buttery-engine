@@ -1,6 +1,9 @@
+#[cfg(target_arch = "wasm32")]
+use super::async_model_loading::fetch_model_data;
+#[cfg(not(target_arch = "wasm32"))]
+use super::glb_parser::parse_glb;
 use super::{
     camera::{CameraUniform, Projection},
-    glb_parser::parse_glb,
     light::{BiasUniform, LightUniform},
     mesh::Mesh,
     offset::ModelTransform,
@@ -10,20 +13,18 @@ use buttery_engine::{
     camera::Camera,
     game::ButteryGame,
     renderer::ButteryRenderer,
-    ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
+    ui::{ButteryColor, ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
     world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;
 use cgmath::{Deg, Matrix4};
 use egui::{Align2, Color32, Frame, Id, Stroke, Ui, vec2};
-use std::{any::Any, collections::HashMap, io::Read, sync::Arc};
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Read;
+use std::{any::Any, collections::HashMap, sync::Arc};
 use std::{cell::RefCell, rc::Rc};
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsCast;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::{JsFuture, spawn_local};
-#[cfg(target_arch = "wasm32")]
-use web_sys::{Request, RequestInit, RequestMode, Response};
+use wasm_bindgen_futures::spawn_local;
 use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages,
     util::DeviceExt,
@@ -40,6 +41,11 @@ pub struct MeshStateHandle {
     state: MeshState,
 }
 
+pub struct RenderableObject {
+    mesh: Arc<Mesh>,
+    transform: ModelTransform,
+}
+
 pub struct SlipperyRenderer<G: ButteryGame> {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
@@ -51,7 +57,7 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     msaa_texture: wgpu::TextureView,
     render_pipeline: wgpu::RenderPipeline,
 
-    pub meshes: Vec<Arc<Mesh>>,
+    pub objects: Vec<RenderableObject>,
     pub mesh_cache: HashMap<String, Rc<RefCell<MeshStateHandle>>>,
     depth_format: wgpu::TextureFormat,
 
@@ -78,49 +84,19 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     show_light_view: bool,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     transform_bind_group_layout: wgpu::BindGroupLayout,
-}
 
-#[cfg(target_arch = "wasm32")]
-async fn fetch_model_data(
-    path: &str,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture: &wgpu::BindGroupLayout,
-    transform: &wgpu::BindGroupLayout,
-) -> Result<Vec<Mesh>, String> {
-    let opts = RequestInit::new();
-    opts.set_method("GET");
-    opts.set_mode(RequestMode::Cors);
-
-    let request = Request::new_with_str_and_init(path, &opts)
-        .map_err(|_| "Failed to create request".to_string())?;
-    let window = web_sys::window().ok_or_else(|| "Failed to get window".to_string())?;
-    let resp_value = JsFuture::from(window.fetch_with_request(&request))
-        .await
-        .map_err(|_| "Failed to fetch".to_string())?;
-
-    let resp: Response = resp_value
-        .dyn_into()
-        .map_err(|_| "Failed to parse response".to_string())?;
-    let buffer = JsFuture::from(
-        resp.array_buffer()
-            .map_err(|_| "Failed to convert response to buffer".to_string())?,
-    )
-    .await
-    .map_err(|_| "Failed to convert buffer to future".to_string())?;
-    let buffer = js_sys::Uint8Array::new(&buffer).to_vec();
-
-    parse_glb(buffer, device, queue, texture, transform).map_err(|err| err.to_string())
+    background_color: ButteryColor,
 }
 
 impl<G: ButteryGame> SlipperyRenderer<G> {
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(
+        window: Arc<Window>,
+        background_color: Option<ButteryColor>,
+    ) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         let msaa_samples = 4;
 
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -157,15 +133,13 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
             .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
-        // one will result in all the colors coming out darker. If you want to support non
-        // sRGB surfaces, you'll need to account for that when drawing to the frame.
         let surface_format = surface_caps
             .formats
             .iter()
             .find(|f| f.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
+
         let width = if size.width < 1 { 1 } else { size.width };
         let height = if size.height < 1 { 1 } else { size.height };
         let config = wgpu::SurfaceConfiguration {
@@ -427,11 +401,9 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
-                // 3.
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    // 4.
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
@@ -544,7 +516,7 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
             msaa_texture,
             render_pipeline,
 
-            meshes: Vec::new(),
+            objects: Vec::new(),
             mesh_cache: HashMap::new(),
             depth_format,
 
@@ -572,6 +544,8 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
 
             texture_bind_group_layout,
             transform_bind_group_layout,
+
+            background_color: background_color.unwrap_or_default(),
         })
     }
 
@@ -707,6 +681,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
         self
     }
 
+    fn set_background_color(&mut self, color: ButteryColor) {
+        self.background_color = color;
+    }
+
     fn load_model(&mut self, path: &str) {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -817,7 +795,7 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
 
         // Update Meshes/Offsets
         {
-            self.meshes.clear();
+            self.objects.clear();
 
             for (_, object) in &world_model.objects {
                 let mesh_state =
@@ -864,10 +842,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                         offset,
                         rotation: rotation.into(),
                     };
-                    self.queue
-                        .write_buffer(&mesh.transform_buffer, 0, bytes_of(&transform));
-
-                    self.meshes.push(mesh.clone());
+                    self.objects.push(RenderableObject {
+                        mesh: mesh.clone(),
+                        transform,
+                    });
                 }
             }
         }
@@ -928,12 +906,18 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
 
             pass.set_pipeline(&self.light_render_pipeline);
 
-            for mesh in &self.meshes {
+            for object in &self.objects {
+                self.queue.write_buffer(
+                    &object.mesh.transform_buffer,
+                    0,
+                    bytes_of(&object.transform),
+                );
+
                 pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
-                pass.set_bind_group(1, &mesh.transform_bind_group, &[]);
-                pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
-                pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
+                pass.set_bind_group(1, &object.mesh.transform_bind_group, &[]);
+                pass.set_vertex_buffer(0, object.mesh.vertex_buffer.slice(..));
+                pass.set_index_buffer(object.mesh.index_buffer.slice(..), object.mesh.index_format);
+                pass.draw_indexed(0..object.mesh.num_indices, 0, 0..1);
             }
         }
 
@@ -946,10 +930,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                     resolve_target: Some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+                            r: (self.background_color.r as f64 / 255.0),
+                            g: (self.background_color.g as f64 / 255.0),
+                            b: (self.background_color.b as f64 / 255.0),
+                            a: (self.background_color.a as f64 / 255.0),
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -970,14 +954,21 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
             render_pass.set_pipeline(&self.render_pipeline);
 
             // Cloning Meshes here would literally clone every model on each frame...
-            for mesh in &self.meshes {
-                render_pass.set_bind_group(0, &mesh.texture_bind_group, &[]);
+            for object in &self.objects {
+                self.queue.write_buffer(
+                    &object.mesh.transform_buffer,
+                    0,
+                    bytes_of(&object.transform),
+                );
+
+                render_pass.set_bind_group(0, &object.mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_light_bind_group, &[]);
-                render_pass.set_bind_group(2, &mesh.transform_bind_group, &[]);
+                render_pass.set_bind_group(2, &object.mesh.transform_bind_group, &[]);
                 render_pass.set_bind_group(3, &self.shadow_bind_group, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.index_buffer.slice(..), mesh.index_format);
-                render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
+                render_pass.set_vertex_buffer(0, object.mesh.vertex_buffer.slice(..));
+                render_pass
+                    .set_index_buffer(object.mesh.index_buffer.slice(..), object.mesh.index_format);
+                render_pass.draw_indexed(0..object.mesh.num_indices, 0, 0..1);
             }
         }
 

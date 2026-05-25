@@ -4,6 +4,7 @@ use buttery_engine::{
     game::ButteryGame,
     key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent},
     renderer::ButteryRenderer,
+    ui::ButteryColor,
     windowing::ButteryWindowingSystem,
 };
 use std::{marker::PhantomData, sync::Arc};
@@ -19,12 +20,14 @@ use winit::{
 
 pub struct SlipperyRendererWindowing<G: ButteryGame> {
     _phantom_data: PhantomData<G>,
+    background_color: Option<ButteryColor>,
 }
 
 impl<G: ButteryGame> SlipperyRendererWindowing<G> {
-    pub fn new() -> Box<dyn ButteryWindowingSystem<G>> {
+    pub fn new(background_color: Option<ButteryColor>) -> Box<dyn ButteryWindowingSystem<G>> {
         Box::new(Self {
             _phantom_data: PhantomData {},
+            background_color,
         }) as Box<dyn ButteryWindowingSystem<G>>
     }
 }
@@ -33,6 +36,7 @@ pub struct State<G: ButteryGame> {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<EventLoopProxy<SlipperyRenderer<G>>>,
     pub engine: ButteryEngine<G>,
+    background_color: Option<ButteryColor>,
 }
 
 impl<G: ButteryGame> ButteryWindowingSystem<G> for SlipperyRendererWindowing<G> {
@@ -66,6 +70,7 @@ impl<G: ButteryGame> ButteryWindowingSystem<G> for SlipperyRendererWindowing<G> 
             engine,
             #[cfg(target_arch = "wasm32")]
             proxy,
+            background_color: self.background_color.clone(),
         };
 
         match event_loop.run_app(&mut state) {
@@ -107,9 +112,10 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
         {
             // If we are not on web we can use pollster to
             // await the initialization of the renderer
-            self.engine.state.renderer =
-                Box::new(pollster::block_on(SlipperyRenderer::new(window)).unwrap())
-                    as Box<dyn ButteryRenderer<G>>;
+            self.engine.state.renderer = Box::new(
+                pollster::block_on(SlipperyRenderer::new(window, self.background_color.clone()))
+                    .unwrap(),
+            ) as Box<dyn ButteryRenderer<G>>;
             self.engine.on_init();
         }
 
@@ -117,12 +123,13 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
         {
             // Run the future asynchronously and use the
             // proxy to send the results to the event loop
+            let background_color = self.background_color.clone();
             if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
                     assert!(
                         proxy
                             .send_event(
-                                SlipperyRenderer::new(window)
+                                SlipperyRenderer::new(window, background_color)
                                     .await
                                     .expect("Unable to create canvas!!!")
                             )
