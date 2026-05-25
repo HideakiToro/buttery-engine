@@ -13,7 +13,6 @@ pub async fn fetch_model_data(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     texture: &wgpu::BindGroupLayout,
-    transform: &wgpu::BindGroupLayout,
 ) -> Result<Vec<Mesh>, String> {
     let opts = RequestInit::new();
     opts.set_method("GET");
@@ -37,5 +36,5 @@ pub async fn fetch_model_data(
     .map_err(|_| "Failed to convert buffer to future".to_string())?;
     let buffer = js_sys::Uint8Array::new(&buffer).to_vec();
 
-    parse_glb(buffer, device, queue, texture, transform).map_err(|err| err.to_string())
+    parse_glb(buffer, device, queue, texture).map_err(|err| err.to_string())
 }

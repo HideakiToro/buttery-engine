@@ -1,15 +1,12 @@
 use super::{
-    // binary_loader::load_binary,
     gltf_dto::{GLTF, GLTFAccessorType, GLTFMaterial, GLTFNode},
     mesh::Mesh,
-    offset::ModelTransform,
     vertex::Vertex,
 };
-use bytemuck::bytes_of;
 use image::GenericImageView;
 use thiserror::Error;
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BufferUsages, Device, IndexFormat, Queue,
+    BindGroupLayout, BufferUsages, Device, IndexFormat, Queue,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -36,10 +33,7 @@ pub fn parse_glb(
     device: &Device,
     queue: &Queue,
     texture_bind_group_layout: &BindGroupLayout,
-    offset_bind_group_layout: &BindGroupLayout,
 ) -> anyhow::Result<Vec<Mesh>> {
-    // let buffer = load_binary(path).await?;
-
     // File Header
     let (file_is_gltf, buffer) = buffer.split_at(4);
     let (version, buffer) = buffer.split_at(4);
@@ -311,36 +305,9 @@ pub fn parse_glb(
                 usage: BufferUsages::VERTEX,
             });
 
-            let transform = ModelTransform {
-                offset: [0.0, 0.0, 0.0, 0.0],
-                rotation: [
-                    [0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0],
-                ],
-            };
-
-            let transform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("Offset Buffer"),
-                contents: bytes_of(&transform),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            });
-
-            let offset_bind_group = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("Offset Bind Group"),
-                layout: offset_bind_group_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: transform_buffer.as_entire_binding(),
-                }],
-            });
-
             meshes.push(Mesh {
                 index_buffer,
                 vertex_buffer,
-                transform_buffer,
-                transform_bind_group: offset_bind_group,
                 num_indices: mesh.indices.len() as u32,
                 index_format: IndexFormat::Uint16,
                 texture_bind_group,

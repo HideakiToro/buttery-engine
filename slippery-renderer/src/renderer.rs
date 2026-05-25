@@ -44,6 +44,8 @@ pub struct MeshStateHandle {
 pub struct RenderableObject {
     mesh: Arc<Mesh>,
     transform: ModelTransform,
+    transform_buffer: wgpu::Buffer,
+    transform_bind_group: wgpu::BindGroup,
 }
 
 pub struct SlipperyRenderer<G: ButteryGame> {
@@ -176,7 +178,6 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 ],
             });
 
-        // Movement
         let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
         let projection =
             Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
@@ -396,8 +397,8 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: Some("vs_main"), // 1.
-                buffers: &[Vertex::desc()],   // 2.
+                entry_point: Some("vs_main"),
+                buffers: &[Vertex::desc()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -411,15 +412,12 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw, // 2.
+                front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
                 unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -428,14 +426,14 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
-            }), // 1.
+            }),
             multisample: wgpu::MultisampleState {
-                count: msaa_samples,              // 2.
-                mask: !0,                         // 3.
-                alpha_to_coverage_enabled: false, // 4.
+                count: msaa_samples,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
             },
-            multiview: None, // 5.
-            cache: None,     // 6.
+            multiview: None,
+            cache: None,
         });
 
         let light_render_pipeline = {
@@ -453,21 +451,18 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: Some("vs_main"), // 1.
-                    buffers: &[Vertex::desc()],   // 2.
+                    entry_point: Some("vs_main"),
+                    buffers: &[Vertex::desc()],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: None,
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                    topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw, // 2.
+                    front_face: wgpu::FrontFace::Ccw,
                     cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                     polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
                     unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
@@ -476,14 +471,14 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState::default(),
-                }), // 1.
+                }),
                 multisample: wgpu::MultisampleState {
-                    count: 1,                         // 2.
-                    mask: !0,                         // 3.
-                    alpha_to_coverage_enabled: false, // 4.
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
                 },
-                multiview: None, // 5.
-                cache: None,     // 6.
+                multiview: None,
+                cache: None,
             })
         };
 
@@ -710,7 +705,6 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                 &self.device,
                 &self.queue,
                 &self.texture_bind_group_layout,
-                &self.transform_bind_group_layout,
             ) {
                 Ok(res) => res,
                 Err(e) => {
@@ -740,11 +734,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
             let device = self.device.clone();
             let queue = self.queue.clone();
             let texture = self.texture_bind_group_layout.clone();
-            let transform = self.transform_bind_group_layout.clone();
             let path = path.to_string();
 
             spawn_local(async move {
-                let result = fetch_model_data(&path, &device, &queue, &texture, &transform).await;
+                let result = fetch_model_data(&path, &device, &queue, &texture).await;
 
                 let new_state = match result {
                     Ok(meshes) => {
@@ -842,9 +835,30 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                         offset,
                         rotation: rotation.into(),
                     };
+
+                    let transform_buffer =
+                        self.device
+                            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                label: Some("Bias Buffer"),
+                                contents: bytemuck::cast_slice(&[transform]),
+                                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                            });
+
+                    let transform_bind_group =
+                        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("Transform Bind Group"),
+                            layout: &self.transform_bind_group_layout,
+                            entries: &[wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: transform_buffer.as_entire_binding(),
+                            }],
+                        });
+
                     self.objects.push(RenderableObject {
                         mesh: mesh.clone(),
                         transform,
+                        transform_buffer,
+                        transform_bind_group,
                     });
                 }
             }
@@ -907,14 +921,11 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
             pass.set_pipeline(&self.light_render_pipeline);
 
             for object in &self.objects {
-                self.queue.write_buffer(
-                    &object.mesh.transform_buffer,
-                    0,
-                    bytes_of(&object.transform),
-                );
+                self.queue
+                    .write_buffer(&object.transform_buffer, 0, bytes_of(&object.transform));
 
                 pass.set_bind_group(0, &self.camera_light_bind_group, &[]);
-                pass.set_bind_group(1, &object.mesh.transform_bind_group, &[]);
+                pass.set_bind_group(1, &object.transform_bind_group, &[]);
                 pass.set_vertex_buffer(0, object.mesh.vertex_buffer.slice(..));
                 pass.set_index_buffer(object.mesh.index_buffer.slice(..), object.mesh.index_format);
                 pass.draw_indexed(0..object.mesh.num_indices, 0, 0..1);
@@ -953,17 +964,13 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            // Cloning Meshes here would literally clone every model on each frame...
             for object in &self.objects {
-                self.queue.write_buffer(
-                    &object.mesh.transform_buffer,
-                    0,
-                    bytes_of(&object.transform),
-                );
+                self.queue
+                    .write_buffer(&object.transform_buffer, 0, bytes_of(&object.transform));
 
                 render_pass.set_bind_group(0, &object.mesh.texture_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_light_bind_group, &[]);
-                render_pass.set_bind_group(2, &object.mesh.transform_bind_group, &[]);
+                render_pass.set_bind_group(2, &object.transform_bind_group, &[]);
                 render_pass.set_bind_group(3, &self.shadow_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, object.mesh.vertex_buffer.slice(..));
                 render_pass
