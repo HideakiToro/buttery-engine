@@ -9,7 +9,7 @@ use buttery_engine::{
     key_event::{Key, KeyEvent},
     object::Object,
     ui::{
-        ButterUI2D, ButteryUIButton, ButteryUIColor, ButteryUIContainer, ButteryUIContainerOutline,
+        ButterUI2D, ButteryColor, ButteryUIButton, ButteryUIContainer, ButteryUIContainerOutline,
         ButteryUIDirectional, ButteryUIElement, ButteryUIInput, ButteryUIModel, ButteryUIText,
         ButteryUIWindow, ButteryUIWindowRelativePosition,
     },
@@ -82,7 +82,7 @@ impl ButteryExample {
                     size: None,
                 }),
                 relative_position: ButteryUIWindowRelativePosition::TopLeft,
-                background_color: ButteryUIColor {
+                background_color: ButteryColor {
                     r: 0,
                     g: 0,
                     b: 0,
@@ -126,7 +126,7 @@ impl ButteryExample {
                                         ..Default::default()
                                     }),
                                 ],
-                                color: ButteryUIColor {
+                                color: ButteryColor {
                                     r: 255,
                                     g: 0,
                                     b: 0,
@@ -135,7 +135,7 @@ impl ButteryExample {
                                 corner_radius: 20.0,
                                 size: Some(ButterUI2D { x: 10.0, y: 30.0 }),
                                 outline: Some(ButteryUIContainerOutline {
-                                    color: ButteryUIColor {
+                                    color: ButteryColor {
                                         a: 255,
                                         r: 255,
                                         g: 255,
@@ -170,7 +170,7 @@ impl ButteryExample {
                                     game.secondary_text = value;
                                 },
                                 size: Some(ButterUI2D { x: 200.0, y: 50.0 }),
-                                background_color: Some(ButteryUIColor {
+                                background_color: Some(ButteryColor {
                                     r: 255,
                                     g: 0,
                                     b: 0,

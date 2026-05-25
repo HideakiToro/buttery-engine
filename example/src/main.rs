@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 fn main() -> anyhow::Result<()> {
     let game = ButteryExample::new();
-    ButteryEngine::run(SlipperyRendererWindowing::new(), game)
+    ButteryEngine::run(SlipperyRendererWindowing::new(None), game)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -14,7 +14,7 @@ fn main() -> anyhow::Result<()> {
 pub fn run_web() -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     let game = ButteryExample::new();
-    if let Err(e) = ButteryEngine::run(SlipperyRendererWindowing::new(), game) {
+    if let Err(e) = ButteryEngine::run(SlipperyRendererWindowing::new(None), game) {
         println!("{e:#?}");
     }
 
