@@ -5,6 +5,7 @@ pub struct Camera {
     pub position: Point3<f32>,
     pub yaw: Rad<f32>,
     pub pitch: Rad<f32>,
+    pub render_distance: f32,
 }
 
 impl Camera {
@@ -12,11 +13,13 @@ impl Camera {
         position: V,
         yaw: Y,
         pitch: P,
+        render_distance: f32,
     ) -> Self {
         Self {
             position: position.into(),
             yaw: yaw.into(),
             pitch: pitch.into(),
+            render_distance,
         }
     }
 }

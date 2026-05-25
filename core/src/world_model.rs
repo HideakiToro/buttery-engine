@@ -13,8 +13,8 @@ pub struct ButteryWorldModel {
 impl ButteryWorldModel {
     pub fn default() -> Self {
         Self {
-            camera: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0)),
-            light: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0)),
+            camera: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0), 100.0),
+            light: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0), 100.0),
             objects: HashMap::new(),
         }
     }
