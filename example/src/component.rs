@@ -13,7 +13,7 @@ pub struct ExampleComponent {
 impl ButteryComponent for ExampleComponent {
     fn on_init(&mut self, _world_diff: &mut Registry<Object>, object_data: &mut ObjectData) {
         let rand = rand::random::<f32>();
-        object_data.position[0] = rand;
+        object_data.position[1] = rand;
     }
     fn on_update(
         &mut self,

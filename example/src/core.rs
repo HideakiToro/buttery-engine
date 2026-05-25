@@ -212,16 +212,19 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_init(&mut self, state: &mut ButteryEngineState<ButteryExample>) {
-        let components: Vec<Box<dyn ButteryComponent>> =
-            vec![Box::new(ExampleComponent::default())];
-        let object = Object::new(
-            [0.0, 0.0, 0.0],
-            [Deg(0.0), Deg(0.0), Deg(0.0)],
-            "models/cube.glb".into(),
-            components,
-            &mut state.world_diff,
-        );
-        state.world_model.objects.insert(object.get_id(), object);
+        for i in 0..10 {
+            let components: Vec<Box<dyn ButteryComponent>> =
+                vec![Box::new(ExampleComponent::default())];
+            let object = Object::new(
+                [-2.0 + (i as f32 * (4.0 / 10.0)), 0.0, 0.0],
+                [Deg(0.0), Deg(0.0), Deg(0.0)],
+                "models/cube.glb".into(),
+                components,
+                &mut state.world_diff,
+            );
+
+            state.world_model.objects.insert(object.get_id(), object);
+        }
 
         state.world_model.light = self.light;
     }
