@@ -178,9 +178,14 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 ],
             });
 
-        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
-        let projection =
-            Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0), 100.0);
+        let projection = Projection::new(
+            config.width,
+            config.height,
+            cgmath::Deg(45.0),
+            0.1,
+            camera.render_distance,
+        );
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -228,9 +233,14 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 label: Some("camera_bind_group_layout"),
             });
 
-        let light_camera = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0));
-        let light_projection =
-            Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let light_camera = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0), 100.0);
+        let light_projection = Projection::new(
+            config.width,
+            config.height,
+            cgmath::Deg(45.0),
+            0.1,
+            light_camera.render_distance,
+        );
         let mut light_camera_uniform = CameraUniform::new();
         light_camera_uniform.update_view_proj(&light_camera, &light_projection);
         let mut light = LightUniform::new();
@@ -758,6 +768,8 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
     fn on_update(&mut self, world_model: &ButteryWorldModel) {
         // Update Camera
         {
+            self.projection.zfar = world_model.camera.render_distance;
+
             self.camera_uniform
                 .update_view_proj(&world_model.camera, &self.projection);
 
@@ -776,8 +788,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
 
         // Update Light
         {
+            self.light_projection.zfar = world_model.light.render_distance;
+
             self.light_camera_uniform
-                .update_view_proj(&world_model.light, &self.projection);
+                .update_view_proj(&world_model.light, &self.light_projection);
 
             self.queue.write_buffer(
                 &self.light_buffer,
