@@ -30,8 +30,8 @@ pub struct ButteryExample {
 
 impl ButteryExample {
     pub fn new() -> Self {
-        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0));
-        let light = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0));
+        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0), 100.0);
+        let light = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0), 100.0);
 
         Self {
             camera,
