@@ -1,3 +1,5 @@
+use crate::camera::SlipperyCamera;
+
 #[cfg(target_arch = "wasm32")]
 use super::async_model_loading::fetch_model_data;
 #[cfg(not(target_arch = "wasm32"))]
@@ -12,12 +14,14 @@ use super::{
 use buttery_engine::{
     camera::Camera,
     game::ButteryGame,
+    key_event::MousePosition,
+    object::Object,
     renderer::ButteryRenderer,
     ui::{ButteryColor, ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
     world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;
-use cgmath::{Deg, Matrix4};
+use cgmath::{Deg, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4};
 use egui::{Align2, Color32, Frame, Id, Stroke, Ui, vec2};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Read;
@@ -833,7 +837,6 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                 };
 
                 for mesh in meshes {
-                    // Offset
                     let offset = [
                         object.data.position[0],
                         object.data.position[1],
@@ -1141,6 +1144,78 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
     fn update_ui_model(&mut self, ui_model: Option<ButteryUIModel<G>>) {
         self.ui_model = ui_model;
     }
+
+    // AI generated
+    fn object_at_mouse_position<'a>(
+        &self,
+        world_model: &'a ButteryWorldModel,
+        mouse_position: MousePosition,
+    ) -> Option<&'a Object> {
+        let view_matrix =
+            (self.projection.calc_matrix() * world_model.camera.calc_matrix()).invert()?;
+
+        let x_ndc = (mouse_position.x as f32 / self.config.width as f32) * 2.0 - 1.0;
+        let y_ndc = 1.0 - (mouse_position.y as f32 / self.config.height as f32) * 2.0;
+
+        let near_clip = Vector4::new(x_ndc, y_ndc, 0.0, 1.0);
+        let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
+
+        let near_world = view_matrix * near_clip;
+        let far_world = view_matrix * far_clip;
+
+        let near_world = near_world.truncate() / near_world.w;
+        let far_world = far_world.truncate() / far_world.w;
+
+        let ray_origin = near_world;
+        let ray_dir = (far_world - near_world).normalize();
+
+        let mut closest: Option<(f32, &Object)> = None;
+
+        for (_, object) in &world_model.objects {
+            let Some(state) = self
+                .mesh_cache
+                .get(&object.model_path)
+                .and_then(|entry| Some(entry.borrow()))
+            else {
+                continue;
+            };
+
+            let meshes = match &*&state.state {
+                MeshState::Ready(meshes) => meshes,
+                _ => continue,
+            };
+
+            let offset = [
+                object.data.position[0],
+                object.data.position[1],
+                object.data.position[2],
+                0.0,
+            ];
+
+            let rotation = Matrix4::from_angle_y(object.data.rotation[1])
+                * Matrix4::from_angle_x(object.data.rotation[0])
+                * Matrix4::from_angle_z(object.data.rotation[2]);
+
+            let transform = ModelTransform {
+                offset,
+                rotation: rotation.into(),
+            };
+
+            let world_matrix = transform.matrix();
+
+            for mesh in meshes {
+                let hit = ray_mesh_intersection(ray_origin, ray_dir, mesh.as_ref(), world_matrix);
+
+                if let Some(dist) = hit {
+                    if closest.map(|(d, _)| dist < d).unwrap_or(true) {
+                        closest = Some((dist, object));
+                    }
+                }
+            }
+        }
+
+        closest.map(|(_, obj)| obj)
+    }
 }
 
 fn buttery_ui_window_relative_position_to_align_2(
@@ -1157,4 +1232,70 @@ fn buttery_ui_window_relative_position_to_align_2(
         ButteryUIWindowRelativePosition::BottomCenter => Align2::CENTER_BOTTOM,
         ButteryUIWindowRelativePosition::BottomRight => Align2::RIGHT_BOTTOM,
     }
+}
+
+// AI generated
+fn ray_mesh_intersection(
+    ray_origin: Vector3<f32>,
+    ray_dir: Vector3<f32>,
+    mesh: &Mesh,
+    world_matrix: Matrix4<f32>,
+) -> Option<f32> {
+    let inv = world_matrix.invert()?;
+    let local_origin =
+        inv.transform_point(Point3::from((ray_origin.x, ray_origin.y, ray_origin.z)));
+    let local_dir = inv.transform_vector(ray_dir).normalize();
+
+    let mut closest = None;
+
+    for tri in mesh.indices.chunks(3) {
+        let v0 = mesh.vertices[tri[0] as usize].position;
+        let v1 = mesh.vertices[tri[1] as usize].position;
+        let v2 = mesh.vertices[tri[2] as usize].position;
+
+        if let Some(dist) = ray_triangle(local_origin, local_dir, v0.into(), v1.into(), v2.into()) {
+            if closest.map(|d| dist < d).unwrap_or(true) {
+                closest = Some(dist);
+            }
+        }
+    }
+
+    closest
+}
+
+// AI generated
+fn ray_triangle(
+    origin: Point3<f32>,
+    dir: Vector3<f32>,
+    v0: Point3<f32>,
+    v1: Point3<f32>,
+    v2: Point3<f32>,
+) -> Option<f32> {
+    let eps = 1e-6;
+
+    let e1 = v1 - v0;
+    let e2 = v2 - v0;
+
+    let p = dir.cross(e2);
+    let det = e1.dot(p);
+
+    if det.abs() < eps {
+        return None;
+    }
+    let inv_det = 1.0 / det;
+
+    let tvec = origin - v0;
+    let u = tvec.dot(p) * inv_det;
+    if u < 0.0 || u > 1.0 {
+        return None;
+    }
+
+    let q = tvec.cross(e1);
+    let v = dir.dot(q) * inv_det;
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+
+    let t = e2.dot(q) * inv_det;
+    if t > eps { Some(t) } else { None }
 }

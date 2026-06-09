@@ -311,6 +311,8 @@ pub fn parse_glb(
                 num_indices: mesh.indices.len() as u32,
                 index_format: IndexFormat::Uint16,
                 texture_bind_group,
+                vertices,
+                indices: mesh.indices,
             });
         }
     }
