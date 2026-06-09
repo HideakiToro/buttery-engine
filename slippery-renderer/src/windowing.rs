@@ -37,6 +37,7 @@ pub struct State<G: ButteryGame> {
     proxy: Option<EventLoopProxy<SlipperyRenderer<G>>>,
     pub engine: ButteryEngine<G>,
     pub mouse_position: MousePosition,
+    window: Option<Arc<Window>>,
     background_color: Option<ButteryColor>,
 }
 
@@ -71,8 +72,9 @@ impl<G: ButteryGame> ButteryWindowingSystem<G> for SlipperyRendererWindowing<G> 
             engine,
             #[cfg(target_arch = "wasm32")]
             proxy,
-            background_color: self.background_color.clone(),
             mouse_position: MousePosition::default(),
+            window: None,
+            background_color: self.background_color.clone(),
         };
 
         match event_loop.run_app(&mut state) {
@@ -109,6 +111,8 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
         window_attributes.title = self.engine.game.get_title();
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+
+        self.window = Some(window.clone());
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -181,7 +185,13 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
-                self.engine.state.renderer.resize(size.width, size.height)
+                let size = self
+                    .window
+                    .clone()
+                    .and_then(|window| Some(window.inner_size()))
+                    .unwrap_or(size);
+
+                self.engine.state.renderer.resize(size.width, size.height);
             }
             WindowEvent::RedrawRequested => {
                 self.engine.calc_delta_time();
