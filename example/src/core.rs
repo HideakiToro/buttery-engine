@@ -6,7 +6,7 @@ use buttery_engine::{
     component::ButteryComponent,
     engine::ButteryEngineState,
     game::ButteryGame,
-    key_event::{Key, KeyEvent},
+    key_event::{Key, KeyEvent, MousePosition},
     object::Object,
     ui::{
         ButterUI2D, ButteryColor, ButteryUIButton, ButteryUIContainer, ButteryUIContainerOutline,
@@ -26,6 +26,7 @@ pub struct ButteryExample {
     secondary_text: String,
     frame_counter: i32,
     time_since_last_update: f32,
+    mouse_pressed: bool,
 }
 
 impl ButteryExample {
@@ -42,6 +43,7 @@ impl ButteryExample {
             secondary_text: "Hello World!".into(),
             frame_counter: 0,
             time_since_last_update: 0.0,
+            mouse_pressed: false,
         }
     }
 
@@ -286,9 +288,35 @@ impl ButteryGame for ButteryExample {
                 self.camera.yaw = Rad(-PI * 0.5);
                 self.camera.position = Point3::new(0.0, 4.0, 6.0);
             }
+            Key::MouseLeft(position) => {
+                self.mouse_pressed = key_event.pressed;
+
+                if key_event.pressed {
+                    println!(
+                        "Left mouse button was pressed at: ({} | {})",
+                        position.x, position.y
+                    );
+                }
+            }
+            Key::MouseRight(position) if key_event.pressed => {
+                println!(
+                    "Right mouse button was pressed at: ({} | {})",
+                    position.x, position.y
+                );
+            }
             _ => {
                 self.camera_controller.handle_key_event(key_event);
             }
+        }
+    }
+
+    fn on_mouse_moved(
+        &mut self,
+        _state: &mut ButteryEngineState<Self>,
+        mouse_position: MousePosition,
+    ) {
+        if self.mouse_pressed {
+            println!("Dragged to ({} | {})", mouse_position.x, mouse_position.y);
         }
     }
 }
