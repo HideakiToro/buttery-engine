@@ -2,7 +2,7 @@ use super::renderer::SlipperyRenderer;
 use buttery_engine::{
     engine::ButteryEngine,
     game::ButteryGame,
-    key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent},
+    key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent, MousePosition},
     renderer::ButteryRenderer,
     ui::ButteryColor,
     windowing::ButteryWindowingSystem,
@@ -12,7 +12,7 @@ use std::{marker::PhantomData, sync::Arc};
 use winit::event_loop::EventLoopProxy;
 use winit::{
     application::ApplicationHandler,
-    event::{KeyEvent, WindowEvent},
+    event::{KeyEvent, MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::Window,
@@ -36,6 +36,7 @@ pub struct State<G: ButteryGame> {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<EventLoopProxy<SlipperyRenderer<G>>>,
     pub engine: ButteryEngine<G>,
+    pub mouse_position: MousePosition,
     background_color: Option<ButteryColor>,
 }
 
@@ -71,6 +72,7 @@ impl<G: ButteryGame> ButteryWindowingSystem<G> for SlipperyRendererWindowing<G> 
             #[cfg(target_arch = "wasm32")]
             proxy,
             background_color: self.background_color.clone(),
+            mouse_position: MousePosition::default(),
         };
 
         match event_loop.run_app(&mut state) {
@@ -110,8 +112,6 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // If we are not on web we can use pollster to
-            // await the initialization of the renderer
             self.engine.state.renderer = Box::new(
                 pollster::block_on(SlipperyRenderer::new(window, self.background_color.clone()))
                     .unwrap(),
@@ -166,11 +166,6 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
             return;
         }
 
-        // let renderer = match &mut self.engine.renderer {
-        //     Some(canvas) => canvas,
-        //     None => return,
-        // };
-
         if let Some(slippery_renderer) = self
             .engine
             .state
@@ -209,11 +204,43 @@ impl<G: ButteryGame> ApplicationHandler<SlipperyRenderer<G>> for State<G> {
                     pressed: key_state.is_pressed(),
                 });
             }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                self.engine.on_key_event(ButteryKeyEvent {
+                    key: mouse_to_buttery_key(button, self.mouse_position),
+                    pressed: state.is_pressed(),
+                });
+            }
+            // This also seems to fire at the start of the app. Therefore MousePosition will always be initialized correctly.
+            WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
+                self.mouse_position = MousePosition {
+                    x: position.x.floor() as u32,
+                    y: position.y.floor() as u32,
+                };
+
+                self.engine.on_mouse_moved(self.mouse_position);
+            }
             _ => {}
         }
     }
+}
 
-    // ...
+fn mouse_to_buttery_key(value: MouseButton, position: MousePosition) -> ButteryKey {
+    match value {
+        MouseButton::Left => ButteryKey::MouseLeft(position),
+        MouseButton::Right => ButteryKey::MouseRight(position),
+        MouseButton::Middle => ButteryKey::MouseMiddle(position),
+        key => {
+            println!("Unknown mouse key {key:#?} event");
+            ButteryKey::Unknown
+        }
+    }
 }
 
 fn key_code_to_buttery_key(value: KeyCode) -> ButteryKey {
@@ -277,7 +304,7 @@ fn key_code_to_buttery_key(value: KeyCode) -> ButteryKey {
         KeyCode::Tab => ButteryKey::Tab,
         key => {
             println!("Unknown key {key:#?} event");
-            ButteryKey::None
+            ButteryKey::Unknown
         }
     }
 }
