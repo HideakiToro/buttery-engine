@@ -3,7 +3,7 @@ use web_time::Instant;
 
 use crate::{
     game::ButteryGame,
-    key_event::KeyEvent,
+    key_event::{KeyEvent, MousePosition},
     object::Object,
     registry::Registry,
     renderer::{ButteryRenderer, FallbackRenderer},
@@ -71,6 +71,10 @@ impl<G: ButteryGame> ButteryEngine<G> {
 
     pub fn on_key_event(&mut self, key_event: KeyEvent) {
         self.game.on_key_event(&mut self.state, key_event);
+    }
+
+    pub fn on_mouse_moved(&mut self, mouse_position: MousePosition) {
+        self.game.on_mouse_moved(&mut self.state, mouse_position);
     }
 
     pub fn calc_delta_time(&mut self) {

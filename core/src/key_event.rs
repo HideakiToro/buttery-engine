@@ -4,7 +4,7 @@ pub struct KeyEvent {
 }
 
 pub enum Key {
-    None,
+    Unknown,
     A,
     B,
     C,
@@ -62,4 +62,13 @@ pub enum Key {
     OSLeft,
     OSRight,
     Tab,
+    MouseLeft(MousePosition),
+    MouseRight(MousePosition),
+    MouseMiddle(MousePosition),
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MousePosition {
+    pub x: u32,
+    pub y: u32,
 }
