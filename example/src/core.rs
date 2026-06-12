@@ -225,7 +225,7 @@ impl ButteryGame for ButteryExample {
                 &mut state.world_diff,
             );
 
-            state.world_model.objects.insert(object.get_id(), object);
+            state.world_diff.to_create.insert(object.get_id(), object);
         }
 
         state.world_model.light = self.light;
