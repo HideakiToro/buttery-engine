@@ -564,7 +564,14 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 ui.label("".to_string());
             }
             ButteryUIElement::Text(text) => {
-                let label = egui::Label::new(format!("{}", text.text));
+                let label = egui::Label::new(egui::RichText::new(format!("{}", text.text)).color(
+                    egui::Color32::from_rgba_unmultiplied(
+                        text.color.r,
+                        text.color.g,
+                        text.color.b,
+                        text.color.a,
+                    ),
+                ));
                 if let Some(size) = &text.size {
                     ui.add_sized(vec2(size.x, size.y), label);
                 } else {
