@@ -21,7 +21,7 @@ impl ButteryWorldModel {
 
     pub fn apply_diff(&mut self, world_diff: &mut Registry<Object>) {
         self.objects
-            .retain(|key, _| !world_diff.to_delete.contains_key(key));
+            .retain(|key, _| !world_diff.to_delete.contains(key));
 
         for (key, obj) in world_diff.to_create.drain() {
             self.objects.insert(key, obj);
