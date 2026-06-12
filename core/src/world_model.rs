@@ -23,11 +23,12 @@ impl ButteryWorldModel {
         if !world_diff.to_delete.is_empty() {
             self.objects
                 .retain(|key, _| !world_diff.to_delete.contains(key));
-            world_diff.to_delete.clear();
         }
 
         for (key, obj) in world_diff.to_create.drain() {
             self.objects.insert(key, obj);
         }
+
+        world_diff.reset();
     }
 }

@@ -51,15 +51,9 @@ impl<G: ButteryGame> ButteryEngine<G> {
 
     pub fn on_init(&mut self) {
         self.game.on_init(&mut self.state);
-
-        self.state
-            .world_model
-            .apply_diff(&mut self.state.world_diff);
     }
 
     pub fn on_update(&mut self) {
-        self.state.world_diff.reset();
-
         for (_, object) in self.state.world_model.objects.iter_mut() {
             object.on_update(&mut self.state.world_diff, self.state.delta_time);
         }
@@ -75,18 +69,10 @@ impl<G: ButteryGame> ButteryEngine<G> {
 
     pub fn on_key_event(&mut self, key_event: KeyEvent) {
         self.game.on_key_event(&mut self.state, key_event);
-
-        self.state
-            .world_model
-            .apply_diff(&mut self.state.world_diff);
     }
 
     pub fn on_mouse_moved(&mut self, mouse_position: MousePosition) {
         self.game.on_mouse_moved(&mut self.state, mouse_position);
-
-        self.state
-            .world_model
-            .apply_diff(&mut self.state.world_diff);
     }
 
     pub fn calc_delta_time(&mut self) {
