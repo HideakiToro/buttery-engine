@@ -56,6 +56,10 @@ impl ButteryExample {
                 child: ButteryUIElement::Column(ButteryUIDirectional {
                     children: vec![ButteryUIElement::Text(ButteryUIText {
                         text: self.fps_text.clone(),
+                        color: ButteryColor {
+                            g: 255,
+                            ..Default::default()
+                        },
                         ..Default::default()
                     })],
                     centered: true,
