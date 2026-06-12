@@ -71,6 +71,10 @@ impl<G: ButteryGame> ButteryEngine<G> {
 
     pub fn on_key_event(&mut self, key_event: KeyEvent) {
         self.game.on_key_event(&mut self.state, key_event);
+
+        self.state
+            .world_model
+            .apply_diff(&mut self.state.world_diff);
     }
 
     pub fn on_mouse_moved(&mut self, mouse_position: MousePosition) {
