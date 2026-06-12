@@ -90,6 +90,7 @@ impl Default for ButteryColor {
 pub struct ButteryUIText {
     pub text: String,
     pub size: Option<ButterUI2D>,
+    pub color: ButteryColor,
 }
 
 pub struct ButteryUIDirectional<G: ButteryGame> {
