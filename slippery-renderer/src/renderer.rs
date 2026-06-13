@@ -684,6 +684,67 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                     });
                 }
             }
+            ButteryUIElement::Slider(slider) => {
+                let mut value = slider.value;
+                if let Some(on_value_changed) = slider.on_value_changed {
+                    let mut ui_slider = egui::Slider::new(&mut value, 0.0..=1.0);
+                    if let Some(text) = &slider.text {
+                        ui_slider = ui_slider.text(text);
+                    }
+
+                    let response = if let Some(size) = &slider.size {
+                        ui.add_sized((size.x, size.y), ui_slider)
+                    } else {
+                        ui.add(ui_slider)
+                    };
+
+                    if response.changed() {
+                        on_value_changed(value, game);
+                    }
+                } else {
+                    ui.scope(|ui| {
+                        let mut style = ui.style().as_ref().clone();
+                        style.visuals.extreme_bg_color = Color32::from_rgba_unmultiplied(
+                            slider.background_color.r,
+                            slider.background_color.g,
+                            slider.background_color.b,
+                            slider.background_color.a,
+                        );
+                        ui.set_style(style);
+
+                        let mut ui_progress_bar = egui::ProgressBar::new(slider.value)
+                            .fill(Color32::from_rgba_unmultiplied(
+                                slider.fill_color.r,
+                                slider.fill_color.g,
+                                slider.fill_color.b,
+                                slider.fill_color.a,
+                            ))
+                            .corner_radius(slider.corner_radius);
+                        match (&slider.text, &slider.text_color) {
+                            (Some(text), None) => {
+                                ui_progress_bar = ui_progress_bar.text(text);
+                            }
+                            (Some(text), Some(text_color)) => {
+                                ui_progress_bar =
+                                    ui_progress_bar.text(egui::RichText::new(text).color(
+                                        Color32::from_rgba_unmultiplied(
+                                            text_color.r,
+                                            text_color.g,
+                                            text_color.b,
+                                            text_color.a,
+                                        ),
+                                    ));
+                            }
+                            _ => {}
+                        }
+                        if let Some(size) = &slider.size {
+                            ui_progress_bar =
+                                ui_progress_bar.desired_width(size.x).desired_height(size.y);
+                        }
+                        ui.add(ui_progress_bar);
+                    });
+                }
+            }
         }
     }
 }
