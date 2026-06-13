@@ -65,6 +65,7 @@ pub enum ButteryUIElement<G: ButteryGame> {
     Button(ButteryUIButton<G>),
     Input(ButteryUIInput<G>),
     Container(ButteryUIContainer<G>),
+    Slider(ButteryUISlider<G>),
 }
 
 #[derive(Clone)]
@@ -153,3 +154,31 @@ pub struct ButteryUIContainerOutline {
     pub width: f32,
     pub color: ButteryColor,
 }
+
+pub struct ButteryUISlider<G: ButteryGame> {
+    pub size: Option<ButterUI2D>,
+    pub on_value_changed: Option<ButteryUISliderChangedCallback<G>>,
+    pub value: f32,
+    pub text: Option<String>,
+    pub text_color: Option<ButteryColor>,
+    pub fill_color: ButteryColor,
+    pub background_color: ButteryColor,
+    pub corner_radius: f32,
+}
+
+impl<G: ButteryGame> Default for ButteryUISlider<G> {
+    fn default() -> Self {
+        Self {
+            on_value_changed: None,
+            size: None,
+            text: None,
+            text_color: None,
+            value: 1.0,
+            fill_color: ButteryColor::default(),
+            background_color: ButteryColor::default(),
+            corner_radius: 0.0,
+        }
+    }
+}
+
+pub type ButteryUISliderChangedCallback<G> = fn(f32, &mut G);
