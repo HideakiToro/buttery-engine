@@ -4,7 +4,7 @@ use crate::{
     game::ButteryGame,
     key_event::MousePosition,
     object::Object,
-    ui::{ButteryColor, ButteryUIModel},
+    ui::{ButteryUIModel, color::ButteryColor},
     world_model::ButteryWorldModel,
 };
 

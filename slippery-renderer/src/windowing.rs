@@ -4,7 +4,7 @@ use buttery_engine::{
     game::ButteryGame,
     key_event::{Key as ButteryKey, KeyEvent as ButteryKeyEvent, MousePosition},
     renderer::ButteryRenderer,
-    ui::ButteryColor,
+    ui::color::ButteryColor,
     windowing::ButteryWindowingSystem,
 };
 use std::{marker::PhantomData, sync::Arc};

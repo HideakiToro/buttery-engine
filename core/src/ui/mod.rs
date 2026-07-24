@@ -1,6 +1,8 @@
-use uuid::Uuid;
+pub mod color;
 
 use crate::game::ButteryGame;
+use color::ButteryColor;
+use uuid::Uuid;
 
 #[derive(Default)]
 pub struct ButteryUIModel<G: ButteryGame> {
@@ -66,25 +68,6 @@ pub enum ButteryUIElement<G: ButteryGame> {
     Input(ButteryUIInput<G>),
     Container(ButteryUIContainer<G>),
     Slider(ButteryUISlider<G>),
-}
-
-#[derive(Clone)]
-pub struct ButteryColor {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
-}
-
-impl Default for ButteryColor {
-    fn default() -> Self {
-        Self {
-            r: Default::default(),
-            g: Default::default(),
-            b: Default::default(),
-            a: 255,
-        }
-    }
 }
 
 #[derive(Default)]

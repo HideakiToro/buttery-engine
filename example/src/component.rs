@@ -11,6 +11,14 @@ pub struct ExampleComponent {
 }
 
 impl ButteryComponent for ExampleComponent {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn on_init(&mut self, _world_diff: &mut Registry<Object>, object_data: &mut ObjectData) {
         let rand = rand::random::<f32>();
         object_data.position[1] = rand;

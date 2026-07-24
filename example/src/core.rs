@@ -9,9 +9,10 @@ use buttery_engine::{
     key_event::{Key, KeyEvent, MousePosition},
     object::Object,
     ui::{
-        ButterUI2D, ButteryColor, ButteryUIButton, ButteryUIContainer, ButteryUIContainerOutline,
+        ButterUI2D, ButteryUIButton, ButteryUIContainer, ButteryUIContainerOutline,
         ButteryUIDirectional, ButteryUIElement, ButteryUIInput, ButteryUIModel, ButteryUIText,
         ButteryUIWindow, ButteryUIWindowRelativePosition,
+        color::{ButteryColor, ButteryGradient},
     },
 };
 use cgmath::{Deg, Point3, Rad};
@@ -27,6 +28,8 @@ pub struct ButteryExample {
     frame_counter: i32,
     time_since_last_update: f32,
     mouse_pressed: bool,
+    time_since_start: f32,
+    gradient: ButteryGradient,
 }
 
 impl ButteryExample {
@@ -44,31 +47,90 @@ impl ButteryExample {
             frame_counter: 0,
             time_since_last_update: 0.0,
             mouse_pressed: false,
+            time_since_start: 0.0,
+            gradient: ButteryGradient {
+                stages: vec![
+                    (
+                        1.0,
+                        ButteryColor {
+                            r: 255,
+                            g: 0,
+                            b: 0,
+                            a: 255,
+                        },
+                    ),
+                    (
+                        0.66,
+                        ButteryColor {
+                            r: 0,
+                            g: 0,
+                            b: 255,
+                            a: 255,
+                        },
+                    ),
+                    (
+                        0.33,
+                        ButteryColor {
+                            r: 0,
+                            g: 255,
+                            b: 0,
+                            a: 255,
+                        },
+                    ),
+                    (
+                        0.0,
+                        ButteryColor {
+                            r: 255,
+                            g: 0,
+                            b: 0,
+                            a: 255,
+                        },
+                    ),
+                ],
+            },
         }
     }
 
     fn build_hud_model(&mut self) -> ButteryUIModel<ButteryExample> {
         let mut model = ButteryUIModel {
-            windows: vec![ButteryUIWindow {
-                id: "fps_counter".into(),
-                max_width: 100.0,
-                max_height: 40.0,
-                child: ButteryUIElement::Column(ButteryUIDirectional {
-                    children: vec![ButteryUIElement::Text(ButteryUIText {
-                        text: self.fps_text.clone(),
-                        color: ButteryColor {
-                            g: 255,
+            windows: vec![
+                ButteryUIWindow {
+                    id: "fps_counter".into(),
+                    max_width: 100.0,
+                    max_height: 40.0,
+                    child: ButteryUIElement::Column(ButteryUIDirectional {
+                        children: vec![ButteryUIElement::Text(ButteryUIText {
+                            text: self.fps_text.clone(),
+                            color: ButteryColor {
+                                g: 255,
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    })],
-                    centered: true,
-                    size: None,
-                }),
-                relative_position: ButteryUIWindowRelativePosition::TopRight,
-                offset: ButterUI2D { x: -20.0, y: 20.0 },
-                ..Default::default()
-            }],
+                        })],
+                        centered: true,
+                        size: None,
+                    }),
+                    relative_position: ButteryUIWindowRelativePosition::TopRight,
+                    offset: ButterUI2D { x: -20.0, y: 20.0 },
+                    ..Default::default()
+                },
+                ButteryUIWindow {
+                    id: "gradient showcase".into(),
+                    max_width: 100.0,
+                    max_height: 40.0,
+                    child: ButteryUIElement::Container(ButteryUIContainer {
+                        children: vec![],
+                        color: self.gradient.get_color(self.time_since_start / 5.0),
+                        size: Some(ButterUI2D { x: 100.0, y: 40.0 }),
+                        corner_radius: 20.0,
+                        outline: None,
+                    }),
+                    relative_position: ButteryUIWindowRelativePosition::BottomCenter,
+                    offset: ButterUI2D { x: 0.0, y: -20.0 },
+                    padding: 0,
+                    ..Default::default()
+                },
+            ],
         };
 
         if !self.open_menu {
@@ -236,6 +298,9 @@ impl ButteryGame for ButteryExample {
     }
 
     fn on_update(&mut self, state: &mut ButteryEngineState<ButteryExample>) {
+        self.time_since_start += state.delta_time;
+        self.time_since_start %= 5.0;
+
         self.camera_controller
             .update_camera(&mut self.camera, state.delta_time);
 

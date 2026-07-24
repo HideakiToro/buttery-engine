@@ -17,7 +17,7 @@ use buttery_engine::{
     key_event::MousePosition,
     object::Object,
     renderer::ButteryRenderer,
-    ui::{ButteryColor, ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition},
+    ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition, color::ButteryColor},
     world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;

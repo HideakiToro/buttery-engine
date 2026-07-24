@@ -234,9 +234,9 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
 name = "buttery-engine"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6471b502bd5acd1168d3e220dcbe9de487b273965e9c9fd4083eeec46e2ff90"
+checksum = "953c6a8f3ebfc61c4950644203da6f674a9150cbf6fe1ea7d9d2d7a01f2d00bf"
 dependencies = [
  "anyhow",
  "cgmath",
@@ -1997,7 +1997,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slippery-renderer"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "buttery-engine",
