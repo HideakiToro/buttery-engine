@@ -82,7 +82,7 @@ impl Object {
             .find_map(|component| component.as_any().downcast_ref::<T>())
     }
 
-    pub fn get_componen_mutt<T: ButteryComponent>(&mut self) -> Option<&mut T> {
+    pub fn get_componen_mut<T: ButteryComponent>(&mut self) -> Option<&mut T> {
         self.components
             .iter_mut()
             .find_map(|component| component.as_any_mut().downcast_mut::<T>())
