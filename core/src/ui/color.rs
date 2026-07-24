@@ -40,7 +40,12 @@ impl ButteryGradient {
             panic!("Value must be larger than or equal to at least one stage defined in Gradient");
         };
         let (source_cutoff, source_color) = source_stage;
-        let blend_value = (value - target_cutoff) / (source_cutoff - target_cutoff);
+        let cutoff_diff = source_cutoff - target_cutoff;
+        let blend_value = if cutoff_diff == 0.0 {
+            1.0
+        } else {
+            (value - target_cutoff) / cutoff_diff
+        };
 
         ButteryColor {
             r: (target_color.r as f32
