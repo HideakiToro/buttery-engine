@@ -1,40 +1,9 @@
-use cgmath::{InnerSpace, Matrix4, Rad, Vector3, perspective};
+use buttery_engine::{camera::Camera, projection::ProjectionType};
+use cgmath::{Deg, InnerSpace, Matrix4, Vector3};
 
-use buttery_engine::camera::Camera;
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
-    cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 1.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
-);
-
-pub struct Projection {
-    aspect: f32,
-    fovy: Rad<f32>,
-    znear: f32,
-    pub zfar: f32,
-}
-
-impl Projection {
-    pub fn new<F: Into<Rad<f32>>>(width: u32, height: u32, fovy: F, znear: f32, zfar: f32) -> Self {
-        Self {
-            aspect: width as f32 / height as f32,
-            fovy: fovy.into(),
-            znear,
-            zfar,
-        }
-    }
-
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.aspect = width as f32 / height as f32;
-    }
-
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
-        OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
-    }
-}
+use crate::projection::{
+    Projection, orthographic::OthrographicProjection, perspective::PerspectiveProjection,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -54,8 +23,23 @@ impl CameraUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
+    pub fn update_view_proj(&mut self, camera: &Camera, width: f32, height: f32) {
         self.view_position = camera.position.to_homogeneous().into();
+        let projection = match camera.projection {
+            ProjectionType::Perspective => Box::new(PerspectiveProjection::new(
+                width,
+                height,
+                Deg(camera.fov),
+                0.1,
+                camera.render_distance,
+            )) as Box<dyn Projection>,
+            ProjectionType::Orthographic => Box::new(OthrographicProjection::new(
+                width,
+                height,
+                0.1,
+                camera.render_distance,
+            )),
+        };
         self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
     }
 }

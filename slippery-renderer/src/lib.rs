@@ -5,6 +5,7 @@ pub mod gltf_dto;
 pub mod light;
 pub mod mesh;
 pub mod offset;
+pub mod projection;
 pub mod renderer;
 pub mod vertex;
 pub mod windowing;

@@ -1,11 +1,9 @@
-use crate::camera::SlipperyCamera;
-
 #[cfg(target_arch = "wasm32")]
 use super::async_model_loading::fetch_model_data;
 #[cfg(not(target_arch = "wasm32"))]
 use super::glb_parser::parse_glb;
 use super::{
-    camera::{CameraUniform, Projection},
+    camera::CameraUniform,
     light::{BiasUniform, LightUniform},
     mesh::Mesh,
     offset::ModelTransform,
@@ -15,13 +13,14 @@ use buttery_engine::{
     camera::Camera,
     game::ButteryGame,
     key_event::MousePosition,
+    light::Light,
     object::Object,
     renderer::ButteryRenderer,
     ui::{ButteryUIElement, ButteryUIModel, ButteryUIWindowRelativePosition, color::ButteryColor},
     world_model::ButteryWorldModel,
 };
 use bytemuck::bytes_of;
-use cgmath::{Deg, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4};
+use cgmath::{InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4};
 use egui::{Align2, Color32, Frame, Id, Stroke, Ui, vec2};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Read;
@@ -67,19 +66,16 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     pub mesh_cache: HashMap<String, Rc<RefCell<MeshStateHandle>>>,
     depth_format: wgpu::TextureFormat,
 
-    projection: Projection,
-
+    camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_light_bind_group: wgpu::BindGroup,
 
-    light: LightUniform,
+    light: Light,
+    light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     shadow_bind_group: wgpu::BindGroup,
     shadow_view: wgpu::TextureView,
-    light_camera: Camera,
-    light_camera_uniform: CameraUniform,
-    light_projection: Projection,
     light_render_pipeline: wgpu::RenderPipeline,
 
     pub egui_ctx: egui::Context,
@@ -87,7 +83,6 @@ pub struct SlipperyRenderer<G: ButteryGame> {
     pub egui_renderer: egui_wgpu::Renderer,
     ui_model: Option<ButteryUIModel<G>>,
 
-    show_light_view: bool,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     transform_bind_group_layout: wgpu::BindGroupLayout,
 
@@ -182,17 +177,9 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 ],
             });
 
-        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0), 100.0);
-        let projection = Projection::new(
-            config.width,
-            config.height,
-            cgmath::Deg(45.0),
-            0.1,
-            camera.render_distance,
-        );
-
+        let camera = Camera::default();
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera, &projection);
+        camera_uniform.update_view_proj(&camera, config.width as f32, config.height as f32);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -237,22 +224,13 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
                 label: Some("camera_bind_group_layout"),
             });
 
-        let light_camera = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0), 100.0);
-        let light_projection = Projection::new(
-            config.width,
-            config.height,
-            cgmath::Deg(45.0),
-            0.1,
-            light_camera.render_distance,
-        );
-        let mut light_camera_uniform = CameraUniform::new();
-        light_camera_uniform.update_view_proj(&light_camera, &light_projection);
-        let mut light = LightUniform::new();
-        light.update_view_proj(&light_camera, &light_projection);
+        let light = Light::default();
+        let mut light_uniform = LightUniform::new();
+        light_uniform.update_view_proj(&light);
 
         let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Light Buffer"),
-            contents: bytemuck::cast_slice(&[light]),
+            contents: bytemuck::cast_slice(&[light_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -529,27 +507,22 @@ impl<G: ButteryGame> SlipperyRenderer<G> {
             mesh_cache: HashMap::new(),
             depth_format,
 
-            projection,
-
+            camera,
+            camera_uniform,
             camera_light_bind_group,
             camera_buffer,
-            camera_uniform,
 
             light,
+            light_uniform,
             light_buffer,
             shadow_bind_group,
             shadow_view,
-            light_projection,
-            light_camera,
-            light_camera_uniform,
             light_render_pipeline,
 
             egui_ctx,
             egui_state,
             egui_renderer,
             ui_model: None,
-
-            show_light_view: false,
 
             texture_bind_group_layout,
             transform_bind_group_layout,
@@ -840,35 +813,29 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
     fn on_update(&mut self, world_model: &ButteryWorldModel) {
         // Update Camera
         {
-            self.projection.zfar = world_model.camera.render_distance;
-
-            self.camera_uniform
-                .update_view_proj(&world_model.camera, &self.projection);
-
-            let camera_uniform = if self.show_light_view {
-                self.light_camera_uniform
-            } else {
-                self.camera_uniform
-            };
+            self.camera = world_model.camera;
+            self.camera_uniform.update_view_proj(
+                &self.camera,
+                self.config.width as f32,
+                self.config.height as f32,
+            );
 
             self.queue.write_buffer(
                 &self.camera_buffer,
                 0,
-                bytemuck::cast_slice(&[camera_uniform]),
+                bytemuck::cast_slice(&[self.camera_uniform]),
             );
         }
 
         // Update Light
         {
-            self.light_projection.zfar = world_model.light.render_distance;
-
-            self.light_camera_uniform
-                .update_view_proj(&world_model.light, &self.light_projection);
+            self.light = world_model.light;
+            self.light_uniform.update_view_proj(&self.light);
 
             self.queue.write_buffer(
                 &self.light_buffer,
                 0,
-                bytemuck::cast_slice(&[self.light_camera_uniform]),
+                bytemuck::cast_slice(&[self.light_uniform]),
             );
         }
 
@@ -1175,15 +1142,8 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
                 let height = if height > 2048 { 2048 } else { height };
                 (width, height)
             };
-            self.projection.resize(width, height);
-
-            self.light_projection.resize(width, height);
-            self.light
-                .update_view_proj(&self.light_camera, &self.light_projection);
-            self.light_camera_uniform
-                .update_view_proj(&self.light_camera, &self.light_projection);
-            self.queue
-                .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light]));
+            self.camera_uniform
+                .update_view_proj(&self.camera, width as f32, height as f32);
 
             self.config.width = width;
             self.config.height = height;
@@ -1219,8 +1179,10 @@ impl<G: ButteryGame> ButteryRenderer<G> for SlipperyRenderer<G> {
         world_model: &'a ButteryWorldModel,
         mouse_position: MousePosition,
     ) -> Option<&'a Object> {
-        let view_matrix =
-            (self.projection.calc_matrix() * world_model.camera.calc_matrix()).invert()?;
+        // let view_matrix =
+        //     (self.camera_projection.calc_matrix() * world_model.camera.calc_matrix()).invert()?;
+        let view_matrix: Matrix4<f32> = self.camera_uniform.view_proj.into();
+        let view_matrix = view_matrix.invert()?;
 
         let x_ndc = (mouse_position.x as f32 / self.config.width as f32) * 2.0 - 1.0;
         let y_ndc = 1.0 - (mouse_position.y as f32 / self.config.height as f32) * 2.0;

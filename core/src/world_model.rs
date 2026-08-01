@@ -1,20 +1,18 @@
 use std::collections::HashMap;
 
-use cgmath::Deg;
-
-use crate::{camera::Camera, object::Object, registry::Registry};
+use crate::{camera::Camera, light::Light, object::Object, registry::Registry};
 
 pub struct ButteryWorldModel {
     pub camera: Camera,
-    pub light: Camera,
+    pub light: Light,
     pub objects: HashMap<String, Object>,
 }
 
 impl ButteryWorldModel {
     pub fn default() -> Self {
         Self {
-            camera: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0), 100.0),
-            light: Camera::new((0.0, 0.0, 0.0), Deg(0.0), Deg(0.0), 100.0),
+            camera: Camera::default(),
+            light: Light::default(),
             objects: HashMap::new(),
         }
     }

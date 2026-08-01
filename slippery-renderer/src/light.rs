@@ -1,7 +1,6 @@
-use crate::camera::SlipperyCamera;
-
-use super::camera::Projection;
-use buttery_engine::camera::Camera;
+use crate::projection::{Projection, orthographic::OthrographicProjection};
+use buttery_engine::light::{Light, LightType};
+use cgmath::{InnerSpace, Matrix4, Vector3};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -26,11 +25,17 @@ impl LightUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
-        self.view_position = camera.position.to_homogeneous().into();
-        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
-        let dir = camera.direction();
-        self.direction = [dir.x, dir.y, dir.z, 0.0];
+    pub fn update_view_proj(&mut self, light: &Light) {
+        match light.l_type {
+            LightType::Directional(_direction) => {
+                let dir = light.direction();
+                let projection =
+                    OthrographicProjection::new(200.0, 200.0, 0.1, light.render_distance);
+                // projection is used for direction while camera is used for position
+                self.view_proj = (projection.calc_matrix() * light.calc_matrix()).into();
+                self.direction = [dir.x, dir.y, dir.z, 0.0];
+            }
+        }
     }
 }
 
@@ -38,4 +43,26 @@ impl LightUniform {
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BiasUniform {
     pub bias: [f32; 4],
+}
+
+pub trait SlipperyLight {
+    fn calc_matrix(&self) -> Matrix4<f32>;
+
+    fn direction(&self) -> Vector3<f32>;
+}
+
+impl SlipperyLight for Light {
+    fn calc_matrix(&self) -> Matrix4<f32> {
+        Matrix4::look_to_rh(self.position, self.direction(), Vector3::unit_y())
+    }
+
+    fn direction(&self) -> Vector3<f32> {
+        match self.l_type {
+            LightType::Directional(direction) => {
+                let (sin_pitch, cos_pitch) = direction.pitch.0.sin_cos();
+                let (sin_yaw, cos_yaw) = direction.yaw.0.sin_cos();
+                Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize()
+            }
+        }
+    }
 }

@@ -7,7 +7,9 @@ use buttery_engine::{
     engine::ButteryEngineState,
     game::ButteryGame,
     key_event::{Key, KeyEvent, MousePosition},
+    light::{Light, LightDirection, LightType},
     object::Object,
+    projection::ProjectionType,
     ui::{
         ButterUI2D, ButteryUIButton, ButteryUIContainer, ButteryUIContainerOutline,
         ButteryUIDirectional, ButteryUIElement, ButteryUIInput, ButteryUIModel, ButteryUIText,
@@ -20,7 +22,7 @@ use std::f32::consts::PI;
 
 pub struct ButteryExample {
     camera: Camera,
-    light: Camera,
+    light: Light,
     camera_controller: CameraController,
     open_menu: bool,
     fps_text: String,
@@ -34,8 +36,19 @@ pub struct ButteryExample {
 
 impl ButteryExample {
     pub fn new() -> Self {
-        let camera = Camera::new((0.0, 4.0, 6.0), Deg(-90.0), Deg(-35.0), 100.0);
-        let light = Camera::new((30.0, 28.0, 0.0), Deg(-180.0), Deg(-35.0), 100.0);
+        let camera = Camera::new(
+            (0.0, 4.0, 6.0),
+            Deg(-90.0),
+            Deg(-35.0),
+            45.0,
+            100.0,
+            ProjectionType::Perspective,
+        );
+        let light = Light::new(
+            (30.0, 28.0, 0.0),
+            100.0,
+            LightType::Directional(LightDirection::new(Deg(-180.0), Deg(-35.0))),
+        );
 
         Self {
             camera,
